@@ -611,3 +611,5 @@ fabric.properties
 
 /cache/solidity-files-cache.json
 /cache/test-failures
+
+run-*.json
