@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 
 import {RealEstateToken} from "./RealEstateToken.sol";
 import {OwnerIsCreator} from "lib/chainlink-evm/contracts/src/v0.8/shared/access/OwnerIsCreator.sol";
+import {PriceDetails} from "./PriceDetails.sol";
 
 /**
  * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED VALUES FOR CLARITY.
