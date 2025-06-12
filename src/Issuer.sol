@@ -12,39 +12,25 @@ import {PriceDetails} from "./PriceDetails.sol";
  */
 contract Issuer is OwnerIsCreator {
 
-    error LatestIssueInProgress();
-
     struct FractionalizedNft {
         address to;
         uint256 amount;
     }
 
     RealEstateToken internal immutable i_realEstateToken;
-
-    bytes32 internal s_lastRequestId;
-    uint256 private s_nextTokenId;
-
-    mapping(bytes32 requestId => FractionalizedNft) internal s_issuesInProgress;
+    uint256 private s_currentId;
+    mapping(bytes32 requestId => FractionalizedNft) internal s_issuedTokens;
 
     constructor(address realEstateToken) {
+        s_currentId = 0;
         i_realEstateToken = RealEstateToken(realEstateToken);
     }
 
-    function issue(address to, uint256 amount)
-        external
-        onlyOwner
-        returns (bytes32 requestId)
+    function issue(string calldata uri, address to, uint256 amount) external onlyOwner returns (uint256 tokenId)
     {
-        if (s_lastRequestId != bytes32(0)) revert LatestIssueInProgress();
-
-        s_issuesInProgress[requestId] = FractionalizedNft(to, amount);
-        i_realEstateToken.mint(to, uint256(requestId), amount, new bytes(0), "test.url");
-
-        s_lastRequestId = requestId;
-    }
-
-    function cancelPendingRequest() external onlyOwner {
-        s_lastRequestId = bytes32(0);
+        i_realEstateToken.mint(to, s_currentId, amount, new bytes(0), uri);
+        s_currentId++;
+        return s_currentId - 1;
     }
 
 }

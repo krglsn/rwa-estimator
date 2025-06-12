@@ -20,19 +20,27 @@ contract IssuerTest is Test {
     function test_Issue() public {
         address target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
         assertFalse(token.exists(0));
-        issuer.issue(target, 100);
+        issuer.issue("test.url", target, 100);
         assertTrue(token.exists(0));
         uint256 balance = token.balanceOf(target, 0);
         assertEq(balance, 100);
+        assertFalse(token.exists(1));
+        uint256 id = issuer.issue("test2.url", target, 200);
+        assertEq(id, 1);
+        assertTrue(token.exists(1));
+        balance = token.balanceOf(target, 1);
+        assertEq(balance, 200);
+        assertEq(200, token.totalSupply(1));
+
     }
 
     function test_priceDetails() public {
         address target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
         assertFalse(token.exists(0));
-        issuer.issue(target, 100);
+        issuer.issue("another_test", target, 100);
         assertTrue(token.exists(0));
         token.setPrice(0, 150);
-        uint80 price = token.getPrice(0).price;
-        assertEq(price, 150);
+        token.setPrice(0, 300);
+        assertEq(token.getPrice(0).price, 300);
     }
 }
