@@ -20,20 +20,28 @@ contract Issuer is OwnerIsCreator {
     }
 
     RealEstateToken internal immutable i_realEstateToken;
-    Pool internal immutable i_pool;
+    Pool internal i_pool;
     uint256 private s_currentId;
     mapping(bytes32 requestId => FractionalizedNft) internal s_issuedTokens;
 
-    constructor(address realEstateToken_, address pool_) {
+    constructor(address realEstateToken_) {
         s_currentId = 0;
         i_realEstateToken = RealEstateToken(realEstateToken_);
-        i_pool = Pool(pool_);
     }
 
-    function issue(string calldata uri, address to, uint256 amount, uint256 rentPlan) external onlyOwner returns (uint256 tokenId)
+    function issue(
+        string calldata uri_,
+        address to_,
+        uint256 amount_,
+        address pool_,
+        uint256 rentAmount_,
+        uint256 epochDuration_,
+        uint256 programEnd_
+    ) external onlyOwner returns (uint256 tokenId)
     {
-        i_realEstateToken.mint(to, s_currentId, amount, new bytes(0), uri);
-        i_pool.assign(s_currentId, rentPlan);
+        i_realEstateToken.mint(to_, s_currentId, amount_, new bytes(0), uri_);
+        i_pool = Pool(pool_);
+        i_pool.assign(s_currentId, rentAmount_, epochDuration_, programEnd_);
         s_currentId++;
         return s_currentId - 1;
     }

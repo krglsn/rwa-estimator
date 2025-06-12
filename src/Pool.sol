@@ -12,8 +12,15 @@ contract Pool is OwnerIsCreator {
 
     event SetIssuer(address indexed issuer);
 
-    mapping(uint256 tokenId => uint256) internal s_assignedTokens;
+    struct UsagePlan {
+        uint256 rentAmount;
+        uint256 epochDuration;
+        uint256 programEnd;
+    }
+
     address s_issuer;
+    uint256 private tokenId;
+    UsagePlan plan;
 
     RealEstateToken internal immutable i_realEstateToken;
 
@@ -30,18 +37,22 @@ contract Pool is OwnerIsCreator {
 
     function setIssuer(address _issuer) external onlyOwner {
         s_issuer = _issuer;
-
         emit SetIssuer(_issuer);
     }
 
-    function assign(uint256 tokenId, uint256 rentPlan) external onlyIssuerOrItself {
-        if (!i_realEstateToken.exists(tokenId)) {
+    function assign(uint256 tokenId_, uint256 rentAmount_, uint256 epochDuration_, uint256 programEnd_) external onlyIssuerOrItself {
+        if (!i_realEstateToken.exists(tokenId_)) {
             revert TokenIdNotFound();
         }
-        s_assignedTokens[tokenId] =  rentPlan;
+        tokenId = tokenId_;
+        plan = UsagePlan({
+            rentAmount: rentAmount_,
+            epochDuration: epochDuration_,
+            programEnd: programEnd_
+        });
     }
 
-    function getPlan(uint256 tokenId) external view returns (uint256) {
-        return s_assignedTokens[tokenId];
+    function getPlan() external view returns (UsagePlan memory) {
+        return plan;
     }
 }

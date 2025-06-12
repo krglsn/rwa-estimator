@@ -12,7 +12,7 @@ contract Deploy is Script {
         vm.startBroadcast(deployerPrivateKey);
         RealEstateToken token = new RealEstateToken("https://ipfs.io/ipfs/bafkreib6kdfdaieuilfuhf6gotitktddynxehnqke5pyqcsz5m2wazss44");
         Pool pool = new Pool(address(token));
-        Issuer issuer = new Issuer(address(token), address(pool));
+        Issuer issuer = new Issuer(address(token));
         token.setIssuer(address(issuer));
         vm.stopBroadcast();
     }
