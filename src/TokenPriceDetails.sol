@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
-contract PriceDetails {
+contract TokenPriceDetails {
 
     struct _PriceDetails {
         uint80 price;
