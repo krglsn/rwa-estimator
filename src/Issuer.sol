@@ -4,6 +4,8 @@ pragma solidity 0.8.24;
 import {RealEstateToken} from "./RealEstateToken.sol";
 import {OwnerIsCreator} from "lib/chainlink-evm/contracts/src/v0.8/shared/access/OwnerIsCreator.sol";
 import {PriceDetails} from "./PriceDetails.sol";
+import {Pool} from "./Pool.sol";
+
 
 /**
  * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED VALUES FOR CLARITY.
@@ -18,17 +20,20 @@ contract Issuer is OwnerIsCreator {
     }
 
     RealEstateToken internal immutable i_realEstateToken;
+    Pool internal immutable i_pool;
     uint256 private s_currentId;
     mapping(bytes32 requestId => FractionalizedNft) internal s_issuedTokens;
 
-    constructor(address realEstateToken) {
+    constructor(address realEstateToken_, address pool_) {
         s_currentId = 0;
-        i_realEstateToken = RealEstateToken(realEstateToken);
+        i_realEstateToken = RealEstateToken(realEstateToken_);
+        i_pool = Pool(pool_);
     }
 
-    function issue(string calldata uri, address to, uint256 amount) external onlyOwner returns (uint256 tokenId)
+    function issue(string calldata uri, address to, uint256 amount, uint256 rentPlan) external onlyOwner returns (uint256 tokenId)
     {
         i_realEstateToken.mint(to, s_currentId, amount, new bytes(0), uri);
+        i_pool.assign(s_currentId, rentPlan);
         s_currentId++;
         return s_currentId - 1;
     }
