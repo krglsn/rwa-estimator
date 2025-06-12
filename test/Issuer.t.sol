@@ -39,16 +39,6 @@ contract IssuerTest is Test {
 
     }
 
-    function test_priceDetails() public {
-        address target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
-        assertFalse(token.exists(0));
-        issuer.issue("another_test", target, 100, 22);
-        assertTrue(token.exists(0));
-        token.setPrice(0, 150);
-        token.setPrice(0, 300);
-        assertEq(token.getPrice(0).price, 300);
-    }
-
     function test_poolAssignment() public {
         address target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
         assertFalse(token.exists(0));

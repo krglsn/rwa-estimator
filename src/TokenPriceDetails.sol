@@ -3,17 +3,44 @@ pragma solidity ^0.8.10;
 
 contract TokenPriceDetails {
 
-    struct _PriceDetails {
-        uint80 price;
+    error AppraiserNotAllowed();
+
+    mapping(address => bool) private s_appraisers;
+
+    struct EpochPrice {
+        uint256 oracle;
+        uint256 appraisal;
+        uint80 count;
     }
 
-    mapping(uint256 tokenId => _PriceDetails) internal s_priceDetails;
+    mapping(uint256 tokenId => mapping(uint256 epochId => EpochPrice)) internal s_tokenEpochData;
 
-    function setPrice (uint256 tokenId, uint80 price) public {
-        s_priceDetails[tokenId] = _PriceDetails(price);
+    modifier onlyAppraiser() {
+        if (!s_appraisers[msg.sender]) {
+            revert AppraiserNotAllowed();
+        }
+        _;
     }
 
-    function getPrice (uint256 tokenId) public view returns (_PriceDetails memory price) {
-        return s_priceDetails[tokenId];
+    function registerAppraiser(address appraiser) external {
+        s_appraisers[appraiser] = true;
+    }
+
+    function removeAppraiser(address appraiser) external {
+        s_appraisers[appraiser] = false;
+    }
+
+    function getEpochPrice(uint256 tokenId, uint256 epochId) external view returns (uint256 oracle, uint256 appraisal) {
+        uint256 oracle_ = s_tokenEpochData[tokenId][epochId].oracle;
+        uint256 appraisal_ = s_tokenEpochData[tokenId][epochId].appraisal;
+        return (oracle_, appraisal_);
+    }
+
+    function setAppraiserPrice(uint256 tokenId, uint256 epochId, uint256 appraisal) external onlyAppraiser {
+        uint80 prevCount = s_tokenEpochData[tokenId][epochId].count;
+        uint256 prevCumPrice = s_tokenEpochData[tokenId][epochId].appraisal * prevCount;
+        uint256 newPrice = (prevCumPrice + appraisal) / (prevCount + 1);
+        s_tokenEpochData[tokenId][epochId].appraisal = newPrice;
+        s_tokenEpochData[tokenId][epochId].count++;
     }
 }
