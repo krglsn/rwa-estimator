@@ -31,15 +31,14 @@ contract Issuer is OwnerIsCreator {
 
     function issue(
         string calldata uri_,
-        address to_,
-        uint256 amount_,
         address pool_,
+        uint256 amount_,
         uint256 rentAmount_,
         uint256 epochDuration_,
         uint256 programEnd_
     ) external onlyOwner returns (uint256 tokenId)
     {
-        i_realEstateToken.mint(to_, s_currentId, amount_, new bytes(0), uri_);
+        i_realEstateToken.mint(pool_, s_currentId, amount_, new bytes(0), uri_);
         i_pool = Pool(pool_);
         i_pool.assign(s_currentId, rentAmount_, epochDuration_, programEnd_);
         s_currentId++;

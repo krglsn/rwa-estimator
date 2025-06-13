@@ -43,4 +43,8 @@ contract TokenPriceDetails {
         s_tokenEpochData[tokenId][epochId].appraisal = newPrice;
         s_tokenEpochData[tokenId][epochId].count++;
     }
+
+    function setOraclePrice(uint256 tokenId, uint256 epochId, uint256 value) external {
+        s_tokenEpochData[tokenId][epochId].oracle = value;
+    }
 }

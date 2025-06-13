@@ -23,29 +23,27 @@ contract IssuerTest is Test {
         pool.setIssuer(address(issuer));
     }
 
-    function test_Issue() public {
-        address target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
+    function test_issue() public {
         assertFalse(token.exists(0));
-        issuer.issue("test.url", target, 100, address(pool), 1, 1, 1);
+        issuer.issue("test.url", address(pool), 100, 1, 3600, 1907577068);
         assertTrue(token.exists(0));
-        uint256 balance = token.balanceOf(target, 0);
+        uint256 balance = token.balanceOf(address(pool), 0);
         assertEq(balance, 100);
         assertFalse(token.exists(1));
-        uint256 id = issuer.issue("test2.url", target, 200, address(pool), 1, 1, 1);
+        uint256 id = issuer.issue("test2.url", address(pool), 200, 1, 3600, 1907577068);
         assertEq(id, 1);
         assertTrue(token.exists(1));
-        balance = token.balanceOf(target, 1);
+        balance = token.balanceOf(address(pool), 1);
         assertEq(balance, 200);
         assertEq(200, token.totalSupply(1));
     }
 
     function test_poolAssignment() public {
-        address target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
         assertFalse(token.exists(0));
-        uint256 tokenId = issuer.issue("another_test", target, 111, address(pool), 11, 22, 33);
+        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 22, 1907577068);
         Pool.UsagePlan memory plan = pool.getPlan();
         assertEq(plan.rentAmount, 11);
         assertEq(plan.epochDuration, 22);
-        assertEq(plan.programEnd, 33);
+        assertEq(plan.programEnd, 1907577068);
     }
 }
