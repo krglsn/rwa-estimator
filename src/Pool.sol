@@ -14,10 +14,14 @@ contract Pool is Roles {
     error NoFundsToWithdraw();
     error NoSafetyBalance(uint256);
     error TooShortEpoch();
+    error NoRentToClaim();
 
     event RentPayment(uint256);
+    event Claim(address indexed user, uint256 amount);
 
     event Deposit(address indexed depositor, uint256 depositAmount, uint256 receiveAmount);
+
+    mapping(address appraiser => uint256) private s_claimed;
 
     struct UsagePlan {
         uint256 rentAmount;
@@ -25,6 +29,7 @@ contract Pool is Roles {
         uint256 programEnd;
     }
 
+    uint256 public constant APPRAISER_REWARD_SHARE = 50;
 
     uint256 public constant SAFETY_PERCENT = 10;
     uint256 private tokenId;
@@ -94,7 +99,7 @@ contract Pool is Roles {
         remainingRent = totalRent - paidRent;
     }
 
-    function payRent(uint256 amount) external planAssigned {
+    function payRent(uint256 amount) public planAssigned {
         paidRent += amount;
         emit RentPayment(amount);
     }
@@ -103,7 +108,7 @@ contract Pool is Roles {
         return this.rentDue() > plan.rentAmount;
     }
 
-    function getPlan() external view planAssigned returns (UsagePlan memory) {
+    function getPlan() public view planAssigned returns (UsagePlan memory) {
         return plan;
     }
 
@@ -137,6 +142,24 @@ contract Pool is Roles {
         }
         i_realEstateToken.safeTransferFrom(msg.sender, address(this), tokenId, amountRealEstateToken, "");
         paymentDeposited -= amountPayment;
+    }
+
+    function canClaimAppraiser(address appraiser) public view returns (uint256 rewards) {
+        rewards = 0;
+        (uint256 epoch, ) = getEpoch();
+        for (uint256 i = 0; i < epoch; i++) {
+            uint256 epochRewards = APPRAISER_REWARD_SHARE * plan.rentAmount / 100;
+            rewards += epochRewards * i_realEstateToken.getRewardShare(appraiser, tokenId, i) / 1e18;
+        }
+    }
+
+    function claim() public {
+        uint256 amount = canClaimAppraiser(msg.sender);
+        if (amount > paidRent) {
+            revert NoRentToClaim();
+        }
+        paidRent -= amount;
+        emit Claim(msg.sender, amount);
     }
 
 }

@@ -87,5 +87,55 @@ contract PoolTest is Test {
         assertEq(pool.paymentDeposited(), 1000);
     }
 
+    function test_claim_equal() public {
+        token.setPool(address(pool));
+        uint256 tokenId = 1;
+        pool.assign(tokenId, 50000, 1 days,  block.timestamp + 50 days);
+        address a1 = makeAddr("acc1");
+        address a2 = makeAddr("acc2");
+        token.registerAppraiser(a1);
+        token.registerAppraiser(a2);
+        for (uint256 i = 0; i < 5; i++) {
+            token.setOraclePrice(tokenId, i, 8000);
+            vm.prank(a1);
+            token.setAppraiserPrice(tokenId, i, 5000);
+            vm.prank(a2);
+            token.setAppraiserPrice(tokenId, i, 11000);
+            assertEq(token.getRewardShare(a1, tokenId, i), 5e17);
+        }
+        vm.warp(block.timestamp + 5 days);
+        assertEq(pool.canClaimAppraiser(a1), 5 * 50000 / (2 * 2));
+        assertEq(pool.canClaimAppraiser(a2), 5 * 50000 / (2 * 2));
+    }
+
+    function test_claim_proportions() public {
+        token.setPool(address(pool));
+        uint256 tokenId = 1;
+        pool.assign(tokenId, 50000, 1 days,  block.timestamp + 50 days);
+        address dep = makeAddr("dep");
+        address a1 = makeAddr("acc1");
+        address a2 = makeAddr("acc2");
+        token.registerAppraiser(a1);
+        token.registerAppraiser(a2);
+        for (uint256 i = 0; i < 5; i++) {
+            token.setOraclePrice(tokenId, i, 8000);
+            vm.prank(a1);
+            token.setAppraiserPrice(tokenId, i, 3500);
+            vm.prank(a2);
+            token.setAppraiserPrice(tokenId, i, 10000);
+            assertEq(token.getEpochPrice(tokenId, i), 7625);
+            assertEq(token.getRewardShare(a1, tokenId, i), 634615384615384615);
+            assertEq(token.getRewardShare(a2, tokenId, i), 365384615384615384);
+        }
+        vm.warp(block.timestamp + 5 days);
+        assertEq(pool.canClaimAppraiser(a1), 79325);
+        assertEq(pool.canClaimAppraiser(a2), 45670);
+        vm.prank(dep);
+        pool.payRent(250000);
+        vm.prank(a1);
+        vm.expectEmit();
+        emit Pool.Claim(a1, 79325);
+        pool.claim();
+    }
 
 }

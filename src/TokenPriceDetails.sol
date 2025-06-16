@@ -26,7 +26,7 @@ contract TokenPriceDetails is Roles {
     mapping(address => bool) private s_isAppraiser;
     address[] public s_appraisers;
     mapping(uint256 tokenId => mapping(uint256 epochId => EpochPrice)) internal s_tokenEpochData;
-    mapping(address => mapping(uint256 tokenid => mapping(uint256 epochId => uint256 price))) internal s_appraisals;
+    mapping(address => mapping(uint256 tokenId => mapping(uint256 epochId => uint256 price))) internal s_appraisals;
 
 
     modifier onlyAppraiser() {
@@ -85,15 +85,13 @@ contract TokenPriceDetails is Roles {
         }
     }
 
-    function getRewardShare(address appraiser, uint256 tokenId, uint256 epochId) external returns (uint256) {
+    function getRewardShare(address appraiser, uint256 tokenId, uint256 epochId) external view returns (uint256) {
         //Get reward share at specific epoch, normalised to 1e18
         uint256 appraisersCount = getAppraisalCount(tokenId, epochId);
         if (appraisersCount == 0) {
             return 0;
         }
         uint256 refPrice = getEpochPrice(tokenId, epochId);
-        uint256 allAppraisers = s_appraisers.length;
-        uint256 totalAccuracy = 0;
         uint256 totalWeight = 0;
         uint256 aWeight = 0;
 
