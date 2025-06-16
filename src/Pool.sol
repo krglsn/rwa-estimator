@@ -2,22 +2,21 @@
 pragma solidity ^0.8.10;
 
 import {RealEstateToken} from "./RealEstateToken.sol";
-import {OwnerIsCreator} from "lib/chainlink-evm/contracts/src/v0.8/shared/access/OwnerIsCreator.sol";
+import {Roles} from "./Roles.sol";
 
 
-contract Pool is OwnerIsCreator {
+contract Pool is Roles {
 
     error TokenIdNotFound();
-    error NotIssuerOrItself(address);
     error InvalidProgramEnd();
     error PlanNotAssigned();
     error ProgramFinished();
     error NoFundsToWithdraw();
     error NoSafetyBalance(uint256);
+    error TooShortEpoch();
 
     event RentPayment(uint256);
 
-    event SetIssuer(address indexed issuer);
     event Deposit(address indexed depositor, uint256 depositAmount, uint256 receiveAmount);
 
     struct UsagePlan {
@@ -28,7 +27,6 @@ contract Pool is OwnerIsCreator {
 
 
     uint256 public constant SAFETY_PERCENT = 10;
-    address s_issuer;
     uint256 private tokenId;
     uint256 private startTime;
     uint256 paidRent;
@@ -47,25 +45,16 @@ contract Pool is OwnerIsCreator {
         _;
     }
 
-    modifier onlyIssuerOrItself() {
-        if (msg.sender != address(this) && msg.sender != s_issuer) {
-            revert NotIssuerOrItself(msg.sender);
-        }
-        _;
-    }
-
     constructor(address realEstateToken){
         i_realEstateToken = RealEstateToken(realEstateToken);
-    }
-
-    function setIssuer(address _issuer) external onlyOwner {
-        s_issuer = _issuer;
-        emit SetIssuer(_issuer);
     }
 
     function assign(uint256 tokenId_, uint256 rentAmount_, uint256 epochDuration_, uint256 programEnd_) external onlyIssuerOrItself {
         if (!i_realEstateToken.exists(tokenId_)) {
             revert TokenIdNotFound();
+        }
+        if (epochDuration_ < i_realEstateToken.APPRAISAL_LOCK_TIME()) {
+            revert TooShortEpoch();
         }
         uint256 start = block.timestamp;
         paidRent = 0;

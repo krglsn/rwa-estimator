@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 import {Test, console} from "forge-std/Test.sol";
 import {Issuer} from "../src/Issuer.sol";
 import {RealEstateToken} from "../src/RealEstateToken.sol";
+import {TokenPriceDetails} from "../src/TokenPriceDetails.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {Pool} from "../src/Pool.sol";
 
@@ -40,10 +41,37 @@ contract IssuerTest is Test {
 
     function test_poolAssignment() public {
         assertFalse(token.exists(0));
-        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 22, 1907577068);
+        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
         Pool.UsagePlan memory plan = pool.getPlan();
         assertEq(plan.rentAmount, 11);
-        assertEq(plan.epochDuration, 22);
+        assertEq(plan.epochDuration, 32);
         assertEq(plan.programEnd, 1907577068);
+    }
+
+    function test_shortEpoch() public {
+        assertFalse(token.exists(0));
+        vm.expectRevert(Pool.TooShortEpoch.selector);
+        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 22, 1907577068);
+    }
+
+    function test_lockAppraisal() public {
+        assertFalse(token.exists(0));
+        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
+        token.setIssuer(address(issuer));
+        token.registerAppraiser(address(this));
+        vm.warp(block.timestamp + 10);
+        vm.expectRevert();
+        token.setAppraiserPrice(0, 0, 1);
+    }
+
+
+    function test_duplicatedAppraisal() public {
+        assertFalse(token.exists(0));
+        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
+        token.setIssuer(address(issuer));
+        token.registerAppraiser(address(this));
+        token.setAppraiserPrice(0, 0, 1);
+        vm.expectRevert(TokenPriceDetails.AppraisalAlreadySet.selector);
+        token.setAppraiserPrice(0, 0, 2);
     }
 }

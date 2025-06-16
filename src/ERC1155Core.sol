@@ -3,38 +3,20 @@ pragma solidity 0.8.24;
 
 import {ERC1155Supply} from "lib/openzeppelin-contracts/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import {ERC1155} from "lib/openzeppelin-contracts/contracts/token/ERC1155/ERC1155.sol";
-import {OwnerIsCreator} from "lib/chainlink-evm/contracts/src/v0.8/shared/access/OwnerIsCreator.sol";
+import {Roles} from "./Roles.sol";
 
 /**
  * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED VALUES FOR CLARITY.
  * THIS IS AN EXAMPLE CONTRACT THAT USES UN-AUDITED CODE.
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
-contract ERC1155Core is ERC1155Supply, OwnerIsCreator {
-    address internal s_issuer;
+contract ERC1155Core is ERC1155Supply, Roles {
 
     // Optional mapping for token URIs
     mapping(uint256 tokenId => string) private _tokenURIs;
 
-    event SetIssuer(address indexed issuer);
-
-    error ERC1155Core_CallerIsNotIssuerOrItself(address msgSender);
-
-    modifier onlyIssuerOrItself() {
-        if (msg.sender != address(this) && msg.sender != s_issuer) {
-            revert ERC1155Core_CallerIsNotIssuerOrItself(msg.sender);
-        }
-        _;
-    }
-
     // Used as the URI for all token types by relying on ID substitution, e.g. https://token-cdn-domain/{id}.json
     constructor(string memory uri_) ERC1155(uri_) {}
-
-    function setIssuer(address _issuer) external onlyOwner {
-        s_issuer = _issuer;
-
-        emit SetIssuer(_issuer);
-    }
 
     function mint(address _to, uint256 _id, uint256 _amount, bytes memory _data, string memory _tokenUri)
         public
