@@ -48,9 +48,13 @@ contract IssuerTest is Test {
         facade.call_setAppraiserPrice(0, 0, 3);
         facade.call_setAppraiserPrice(0, 5, 3);
         assertEq(facade.call_getAverageAppraisal(0, 0), 2);
+        assertEq(facade.getAppraisalCount(0, 0), 2);
         assertEq(facade.call_getAverageAppraisal(0, 5), 6);
+        assertEq(facade.getAppraisalCount(0, 5), 2);
         assertEq(facade.call_getAverageAppraisal(0, 6), 1000);
+        assertEq(facade.getAppraisalCount(0, 6), 1);
         assertEq(facade.call_getAverageAppraisal(0, 7), 0);
+        assertEq(facade.getAppraisalCount(0, 7), 0);
     }
 
     function test_notAllowedAppraiser() public {

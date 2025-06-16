@@ -12,12 +12,13 @@ contract TokenPriceDetails is Roles {
     error AppraisalAlreadySet();
 
     uint256 public constant APPRAISAL_LOCK_TIME = 30;
+    uint256 public constant ORACLE_WEIGHT = 70;
+    uint256 public constant APPRAISAL_WEIGHT = 30;
 
-    Pool i_pool;
+    Pool private i_pool;
 
     struct EpochPrice {
         uint256 oracle;
-        uint256 appraisal;
         uint80 count;
     }
 
@@ -42,37 +43,46 @@ contract TokenPriceDetails is Roles {
     function removeAppraiser(address appraiser) public onlyIssuerOrItself {
         // Not remove appraiser from s_appraisers because it may be have old appraisals.
         s_isAppraiser[appraiser] = false;
-//        for (uint256 i = 0; i < s_appraisers.length; i++) {
-//            if (s_appraisers[i] == appraiser) {
-//                s_appraisers[i] = s_appraisers[s_appraisers.length - 1];
-//                s_appraisers.pop();
-//                break;
-//            }
-//        }
     }
 
     function _getAverageAppraisal(uint256 tokenId, uint256 epochId) internal view returns (uint256 avg) {
-    uint256 total = 0;
-    uint256 count = 0;
-    for (uint256 i = 0; i < s_appraisers.length; i++) {
-        address appraiser = s_appraisers[i];
-        uint256 price = s_appraisals[appraiser][tokenId][epochId];
-        if (price > 0) {
-            total += price;
-            count++;
+        uint256 total = 0;
+        uint256 count = 0;
+        for (uint256 i = 0; i < s_appraisers.length; i++) {
+            address appraiser = s_appraisers[i];
+            uint256 price = s_appraisals[appraiser][tokenId][epochId];
+            if (price > 0) {
+                total += price;
+                count++;
+            }
+        }
+        if (count == 0) return 0;
+        return total / count;
+    }
+
+    function getAppraisalCount(uint256 tokenId, uint256 epochId) public view returns (uint256 count) {
+        uint256 total = 0;
+        for (uint256 i = 0; i < s_appraisers.length; i++) {
+            address appraiser = s_appraisers[i];
+            uint256 price = s_appraisals[appraiser][tokenId][epochId];
+            if (price > 0) {
+                total += price;
+                count++;
+            }
+        }
+        return count;
+    }
+
+    function getEpochPrice(uint256 tokenId, uint256 epochId) public view returns (uint256 price) {
+        // Get average weighted price of oracle and apprasal
+        uint256 oracle = s_tokenEpochData[tokenId][epochId].oracle;
+        uint256 appraisal = _getAverageAppraisal(tokenId, epochId);
+        if (appraisal == 0) {
+            price = oracle;
+        } else {
+            price = (ORACLE_WEIGHT * oracle + APPRAISAL_WEIGHT * appraisal) / 100;
         }
     }
-    if (count == 0) return 0;
-    return total / count;
-}
-
-    function getEpochPrice(uint256 tokenId, uint256 epochId) public view returns (uint256 oracle, uint256 appraisal) {
-        uint256 oracle_ = s_tokenEpochData[tokenId][epochId].oracle;
-        uint256 appraisal_ = s_tokenEpochData[tokenId][epochId].appraisal;
-        return (oracle_, appraisal_);
-    }
-
-
 
     function setAppraiserPrice(uint256 tokenId, uint256 epochId, uint256 appraisal) external onlyAppraiser {
         if (address(i_pool) == address(0)) {
@@ -90,11 +100,6 @@ contract TokenPriceDetails is Roles {
 
     function _setAppraiserPrice(uint256 tokenId, uint256 epochId, uint256 appraisal) internal onlyAppraiser {
         s_appraisals[msg.sender][tokenId][epochId] = appraisal;
-//        uint80 prevCount = s_tokenEpochData[tokenId][epochId].count;
-//        uint256 prevCumPrice = s_tokenEpochData[tokenId][epochId].appraisal * prevCount;
-//        uint256 newPrice = (prevCumPrice + appraisal) / (prevCount + 1);
-//        s_tokenEpochData[tokenId][epochId].appraisal = newPrice;
-//        s_tokenEpochData[tokenId][epochId].count++;
     }
 
     function setOraclePrice(uint256 tokenId, uint256 epochId, uint256 value) external {

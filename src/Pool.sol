@@ -62,8 +62,8 @@ contract Pool is Roles {
         if (start >= programEnd_) {
             revert InvalidProgramEnd();
         }
-        (uint256 oracle, uint256 appraisal) = i_realEstateToken.getEpochPrice(tokenId_, 0);
-        paymentDeposited = oracle * i_realEstateToken.totalSupply(tokenId_) * SAFETY_PERCENT / 100;
+        uint256 price = i_realEstateToken.getEpochPrice(tokenId_, 0);
+        paymentDeposited = price * i_realEstateToken.totalSupply(tokenId_) * SAFETY_PERCENT / 100;
         tokenId = tokenId_;
         plan = UsagePlan({
             rentAmount: rentAmount_,
@@ -109,8 +109,7 @@ contract Pool is Roles {
 
     function getPrice() external view planAssigned returns (uint256 tokenPrice) {
         uint256 epochNum = ( block.timestamp - startTime ) / plan.epochDuration;
-        (uint256 oracle, uint256 appraisal) = i_realEstateToken.getEpochPrice(tokenId, epochNum);
-        return oracle;
+        tokenPrice = i_realEstateToken.getEpochPrice(tokenId, epochNum);
     }
 
     function deposit(uint256 amountPayment) public planAssigned {
