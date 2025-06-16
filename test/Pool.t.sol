@@ -68,7 +68,7 @@ contract PoolTest is Test {
     }
 
     function test_deposit_withdraw() public {
-        address depositor = 0xa090437B7c21478F1Cf1615521078204AF66aa7B;
+        address depositor = makeAddr("test_acc");
         token.setOraclePrice(1, 0, 40);
         token.setOraclePrice(1, 1, 30);
         token.setOraclePrice(1, 2, 20);

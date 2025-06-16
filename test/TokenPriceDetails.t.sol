@@ -20,23 +20,25 @@ contract TokenPriceDetailsTestFacade is TokenPriceDetails {
 contract IssuerTest is Test {
     TokenPriceDetailsTestFacade public facade;
     address public target;
+    TokenPriceDetails public token;
 
     function setUp() public {
         facade = new TokenPriceDetailsTestFacade();
         facade.setIssuer(address(this));
-        target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
+        target = makeAddr("test_acc");
     }
 
-//    function test_appraiser() public {
-//        facade.registerAppraiser(target);
-//        vm.startPrank(target);
-//        facade.call_setAppraiserPrice(0, 0, 1);
-//        facade.call_setAppraiserPrice(0, 0, 3);
-//        (uint256 oracle, uint256 appraisal) = facade.getEpochPrice(0, 0);
-//        vm.stopPrank();
-//        facade.removeAppraiser(target);
-//        assertEq(appraisal, 2);
-//    }
+    function test_appraiser() public {
+        facade.registerAppraiser(target);
+        facade.setOraclePrice(0, 0, 30);
+        vm.startPrank(target);
+        facade.call_setAppraiserPrice(0, 0, 70);
+        facade.call_setAppraiserPrice(0, 1, 3);
+        uint256 price = facade.getEpochPrice(0, 0);
+        vm.stopPrank();
+        facade.removeAppraiser(target);
+        assertEq(price, 42);
+    }
 
     function test_averageAppraisal() public {
         facade.registerAppraiser(target);
@@ -67,6 +69,43 @@ contract IssuerTest is Test {
         vm.startPrank(target);
         vm.expectRevert(TokenPriceDetails.PoolNotSet.selector);
         facade.setAppraiserPrice(0, 0, 1);
+        vm.stopPrank();
     }
 
+    function test_shares() public {
+        address appraiser1 = makeAddr("appraiser1");
+        address appraiser2 = makeAddr("appraiser2");
+        facade.setOraclePrice(0, 0, 2000);
+        facade.registerAppraiser(address(appraiser1));
+        facade.registerAppraiser(address(appraiser2));
+        vm.prank(appraiser1);
+        facade.call_setAppraiserPrice(0, 0, 1000);
+        vm.prank(appraiser2);
+        facade.call_setAppraiserPrice(0, 0, 3000);
+        assertEq(facade.getAppraisalCount(0, 0), 2);
+        assertEq(facade.getEpochPrice(0, 0), 2000);
+        assertEq(facade.getRewardShare(appraiser1, 0, 0), 5e17);
+        assertEq(facade.getRewardShare(appraiser2, 0, 0), 5e17);
+    }
+
+    function test_shares2() public {
+        address a1 = makeAddr("appraiser1");
+        address a2 = makeAddr("appraiser2");
+        address a3 = makeAddr("appraiser3");
+        facade.setOraclePrice(0, 0, 2987);
+        facade.registerAppraiser(address(a1));
+        facade.registerAppraiser(address(a2));
+        facade.registerAppraiser(address(a3));
+        vm.prank(a1);
+        facade.call_setAppraiserPrice(0, 0, 1000);
+        vm.prank(a2);
+        facade.call_setAppraiserPrice(0, 0, 1100);
+        vm.prank(a3);
+        facade.call_setAppraiserPrice(0, 0, 5000);
+        assertEq(facade.getAppraisalCount(0, 0), 3);
+        assertEq(facade.getEpochPrice(0, 0), 2800);
+        assertEq(facade.getRewardShare(a1, 0, 0), 315789473684210526);
+        assertEq(facade.getRewardShare(a2, 0, 0), 298245614035087719);
+        assertEq(facade.getRewardShare(a3, 0, 0), 385964912280701754);
+    }
 }

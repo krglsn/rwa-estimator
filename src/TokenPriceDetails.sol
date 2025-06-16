@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 
 import {Roles} from "./Roles.sol";
 import {Pool} from "./Pool.sol";
+import {console} from "../lib/forge-std/src/console.sol";
 
 contract TokenPriceDetails is Roles {
 
@@ -84,6 +85,36 @@ contract TokenPriceDetails is Roles {
         }
     }
 
+    function getRewardShare(address appraiser, uint256 tokenId, uint256 epochId) external returns (uint256) {
+        //Get reward share at specific epoch, normalised to 1e18
+        uint256 appraisersCount = getAppraisalCount(tokenId, epochId);
+        if (appraisersCount == 0) {
+            return 0;
+        }
+        uint256 refPrice = getEpochPrice(tokenId, epochId);
+        uint256 allAppraisers = s_appraisers.length;
+        uint256 totalAccuracy = 0;
+        uint256 totalWeight = 0;
+        uint256 aWeight = 0;
+
+        for (uint256 i = 0; i < s_appraisers.length; i++) {
+            address a = s_appraisers[i];
+            uint256 appraisal = s_appraisals[a][tokenId][epochId];
+            if (appraisal > 0) {
+                uint256 diff = appraisal > refPrice ? (appraisal - refPrice) : (refPrice - appraisal);
+                uint256 weight = diff * 1e18 / refPrice;
+                totalWeight += weight;
+                if (a == appraiser) {
+                    aWeight += weight;
+                }
+            }
+        }
+        if (totalWeight == 0) {
+            return 0;
+        }
+        return aWeight * 1e18 / totalWeight;
+    }
+
     function setAppraiserPrice(uint256 tokenId, uint256 epochId, uint256 appraisal) external onlyAppraiser {
         if (address(i_pool) == address(0)) {
             revert PoolNotSet();
@@ -102,7 +133,7 @@ contract TokenPriceDetails is Roles {
         s_appraisals[msg.sender][tokenId][epochId] = appraisal;
     }
 
-    function setOraclePrice(uint256 tokenId, uint256 epochId, uint256 value) external {
+    function setOraclePrice(uint256 tokenId, uint256 epochId, uint256 value) public onlyIssuerOrItself {
         s_tokenEpochData[tokenId][epochId].oracle = value;
     }
 
