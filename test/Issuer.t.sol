@@ -57,18 +57,17 @@ contract IssuerTest is Test {
     function test_lockAppraisal() public {
         assertFalse(token.exists(0));
         uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
-        token.setIssuer(address(issuer));
+        token.setIssuer(address(this));
         token.registerAppraiser(address(this));
         vm.warp(block.timestamp + 10);
         vm.expectRevert();
         token.setAppraiserPrice(0, 0, 1);
     }
 
-
     function test_duplicatedAppraisal() public {
         assertFalse(token.exists(0));
         uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
-        token.setIssuer(address(issuer));
+        token.setIssuer(address(this));
         token.registerAppraiser(address(this));
         token.setAppraiserPrice(0, 0, 1);
         vm.expectRevert(TokenPriceDetails.AppraisalAlreadySet.selector);

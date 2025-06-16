@@ -7,8 +7,13 @@ import {Test, console} from "forge-std/Test.sol";
 import {Pool} from "../src/Pool.sol";
 
 contract TokenPriceDetailsTestFacade is TokenPriceDetails {
+
     function call_setAppraiserPrice(uint256 tokenId, uint256 epochId, uint256 appraisal) external {
         _setAppraiserPrice(tokenId, epochId, appraisal);
+    }
+
+    function call_getAverageAppraisal(uint256 tokenId, uint256 epochId) external returns (uint256) {
+        return _getAverageAppraisal(tokenId, epochId);
     }
 }
 
@@ -18,18 +23,34 @@ contract IssuerTest is Test {
 
     function setUp() public {
         facade = new TokenPriceDetailsTestFacade();
+        facade.setIssuer(address(this));
         target = 0x50e646d516fED1371aE363C7d6dc7cA951e82604;
     }
 
-    function test_appraiser() public {
+//    function test_appraiser() public {
+//        facade.registerAppraiser(target);
+//        vm.startPrank(target);
+//        facade.call_setAppraiserPrice(0, 0, 1);
+//        facade.call_setAppraiserPrice(0, 0, 3);
+//        (uint256 oracle, uint256 appraisal) = facade.getEpochPrice(0, 0);
+//        vm.stopPrank();
+//        facade.removeAppraiser(target);
+//        assertEq(appraisal, 2);
+//    }
+
+    function test_averageAppraisal() public {
         facade.registerAppraiser(target);
-        vm.startPrank(target);
+        facade.registerAppraiser(address(this));
         facade.call_setAppraiserPrice(0, 0, 1);
+        facade.call_setAppraiserPrice(0, 5, 10);
+        facade.call_setAppraiserPrice(0, 6, 1000);
+        vm.startPrank(target);
         facade.call_setAppraiserPrice(0, 0, 3);
-        (uint256 oracle, uint256 appraisal) = facade.getEpochPrice(0, 0);
-        vm.stopPrank();
-        facade.removeAppraiser(target);
-        assertEq(appraisal, 2);
+        facade.call_setAppraiserPrice(0, 5, 3);
+        assertEq(facade.call_getAverageAppraisal(0, 0), 2);
+        assertEq(facade.call_getAverageAppraisal(0, 5), 6);
+        assertEq(facade.call_getAverageAppraisal(0, 6), 1000);
+        assertEq(facade.call_getAverageAppraisal(0, 7), 0);
     }
 
     function test_notAllowedAppraiser() public {
