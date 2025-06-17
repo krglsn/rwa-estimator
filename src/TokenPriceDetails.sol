@@ -117,7 +117,7 @@ contract TokenPriceDetails is Roles {
         if (address(i_pool) == address(0)) {
             revert PoolNotSet();
         }
-        (uint256 num, uint256 end) = i_pool.getEpoch();
+        (, uint256 end) = i_pool.getEpoch();
         if (block.timestamp >= end - APPRAISAL_LOCK_TIME) {
             revert AppraisalLockTill(end);
         }

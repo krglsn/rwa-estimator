@@ -41,7 +41,7 @@ contract IssuerTest is Test {
 
     function test_poolAssignment() public {
         assertFalse(token.exists(0));
-        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
+        issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
         Pool.UsagePlan memory plan = pool.getPlan();
         assertEq(plan.rentAmount, 11);
         assertEq(plan.epochDuration, 32);
@@ -51,7 +51,7 @@ contract IssuerTest is Test {
     function test_shortEpoch() public {
         assertFalse(token.exists(0));
         vm.expectRevert(Pool.TooShortEpoch.selector);
-        uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 22, 1907577068);
+        issuer.issue("another_test", address(pool), 111, 11, 22, 1907577068);
     }
 
     function test_lockAppraisal() public {
@@ -61,7 +61,7 @@ contract IssuerTest is Test {
         token.registerAppraiser(address(this));
         vm.warp(block.timestamp + 10);
         vm.expectRevert();
-        token.setAppraiserPrice(0, 0, 1);
+        token.setAppraiserPrice(tokenId, 0, 1);
     }
 
     function test_duplicatedAppraisal() public {
@@ -69,9 +69,9 @@ contract IssuerTest is Test {
         uint256 tokenId = issuer.issue("another_test", address(pool), 111, 11, 32, 1907577068);
         token.setIssuer(address(this));
         token.registerAppraiser(address(this));
-        token.setAppraiserPrice(0, 0, 1);
+        token.setAppraiserPrice(tokenId, 0, 1);
         vm.expectRevert(TokenPriceDetails.AppraisalAlreadySet.selector);
-        token.setAppraiserPrice(0, 0, 2);
+        token.setAppraiserPrice(tokenId, 0, 2);
     }
 
 }

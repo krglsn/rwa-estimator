@@ -3,9 +3,10 @@ pragma solidity ^0.8.10;
 
 import {RealEstateToken} from "./RealEstateToken.sol";
 import {Roles} from "./Roles.sol";
+import "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
 
-contract Pool is Roles {
+contract Pool is Roles, ReentrancyGuard {
 
     error TokenIdNotFound();
     error InvalidProgramEnd();
@@ -15,11 +16,13 @@ contract Pool is Roles {
     error NoSafetyBalance(uint256);
     error TooShortEpoch();
     error NoRentToClaim();
+    error MsgValueMismatch();
+    error BalanceDepositMismatch();
 
     event RentPayment(uint256);
     event Claim(address indexed user, uint256 amount);
-
-    event Deposit(address indexed depositor, uint256 depositAmount, uint256 receiveAmount);
+    event Deposit(address indexed user, uint256 deposited, uint256 received, address token);
+    event Withdraw(address indexed user, uint256 withdrawn, uint256 sent, address token);
 
     mapping(address appraiser => uint256) private s_claimed;
 
@@ -54,7 +57,7 @@ contract Pool is Roles {
         i_realEstateToken = RealEstateToken(realEstateToken);
     }
 
-    function assign(uint256 tokenId_, uint256 rentAmount_, uint256 epochDuration_, uint256 programEnd_) external onlyIssuerOrItself {
+    function assign(uint256 tokenId_, uint256 rentAmount_, uint256 epochDuration_, uint256 programEnd_) external payable nonReentrant onlyIssuerOrItself {
         if (!i_realEstateToken.exists(tokenId_)) {
             revert TokenIdNotFound();
         }
@@ -67,8 +70,13 @@ contract Pool is Roles {
         if (start >= programEnd_) {
             revert InvalidProgramEnd();
         }
-        uint256 price = i_realEstateToken.getEpochPrice(tokenId_, 0);
-        paymentDeposited = price * i_realEstateToken.totalSupply(tokenId_) * SAFETY_PERCENT / 100;
+//        uint256 price = i_realEstateToken.getEpochPrice(tokenId_, 0);
+//        uint256 safetyDeposit = price * i_realEstateToken.totalSupply(tokenId_) * SAFETY_PERCENT / 100;
+//        if (msg.value !=safetyDeposit) {
+//            console.log("Msg value: %s %s", msg.value, safetyDeposit);
+//            revert MsgValueMismatch();
+//        }
+//        paymentDeposited += safetyDeposit;
         tokenId = tokenId_;
         plan = UsagePlan({
             rentAmount: rentAmount_,
@@ -99,9 +107,27 @@ contract Pool is Roles {
         remainingRent = totalRent - paidRent;
     }
 
-    function payRent(uint256 amount) public planAssigned {
+    function safetyAmountDue() public view planAssigned returns (uint256 remainingAmount) {
+        if (safetyAmount() > paymentDeposited) {
+            return safetyAmount() - paymentDeposited;
+        }
+        return 0;
+    }
+
+    function payRent(uint256 amount) public payable nonReentrant planAssigned {
+        if (msg.value != amount) {
+            revert MsgValueMismatch();
+        }
         paidRent += amount;
         emit RentPayment(amount);
+    }
+
+    function paySafety(uint256 amount) public payable nonReentrant planAssigned {
+        if (msg.value != amount) {
+            revert MsgValueMismatch();
+        }
+        paymentDeposited += amount;
+        emit Deposit(msg.sender, amount, 0, address(i_realEstateToken));
     }
 
     function canLiquidate() public view planAssigned returns (bool) {
@@ -112,15 +138,21 @@ contract Pool is Roles {
         return plan;
     }
 
-    function getPrice() external view planAssigned returns (uint256 tokenPrice) {
+    function getPrice() public view planAssigned returns (uint256 tokenPrice) {
         uint256 epochNum = ( block.timestamp - startTime ) / plan.epochDuration;
         tokenPrice = i_realEstateToken.getEpochPrice(tokenId, epochNum);
     }
 
-    function deposit(uint256 amountPayment) public planAssigned {
-        uint256 amountRealEstate = amountPayment / this.getPrice();
-        i_realEstateToken.safeTransferFrom(address(this), msg.sender, tokenId, amountRealEstate, "");
-        paymentDeposited += amountPayment;
+    function deposit(uint256 amountPayment) public payable nonReentrant planAssigned {
+        if (msg.value != amountPayment) {
+            revert MsgValueMismatch();
+        }
+        if (msg.value > 0) {
+            uint256 amountRealEstate = amountPayment / this.getPrice();
+            i_realEstateToken.safeTransferFrom(address(this), msg.sender, tokenId, amountRealEstate, "");
+            paymentDeposited += amountPayment;
+            emit Deposit(msg.sender, amountPayment, amountRealEstate, address(i_realEstateToken));
+        }
     }
 
     function safetyAmount() public view returns (uint256 paymentAmount) {
@@ -135,13 +167,16 @@ contract Pool is Roles {
         return paymentDeposited - this.safetyAmount();
     }
 
-    function withdraw(uint256 amountRealEstateToken) public {
+    function withdraw(uint256 amountRealEstateToken) public nonReentrant {
         uint256 amountPayment = amountRealEstateToken * this.getPrice();
         if (amountPayment > availableWithdraw()) {
             revert NoFundsToWithdraw();
         }
         i_realEstateToken.safeTransferFrom(msg.sender, address(this), tokenId, amountRealEstateToken, "");
+        (bool sent,) = msg.sender.call{value: amountPayment}("");
+        require(sent, "Withdraw failed");
         paymentDeposited -= amountPayment;
+        emit Withdraw(msg.sender, amountPayment, amountRealEstateToken, address(i_realEstateToken));
     }
 
     function canClaimAppraiser(address appraiser) public view returns (uint256 rewards) {
@@ -153,11 +188,13 @@ contract Pool is Roles {
         }
     }
 
-    function claim() public {
+    function claim() public nonReentrant {
         uint256 amount = canClaimAppraiser(msg.sender);
         if (amount > paidRent) {
             revert NoRentToClaim();
         }
+        (bool sent,) = msg.sender.call{value: amount}("");
+        require(sent, "Claim failed");
         paidRent -= amount;
         emit Claim(msg.sender, amount);
     }

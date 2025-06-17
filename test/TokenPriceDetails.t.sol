@@ -3,7 +3,6 @@ pragma solidity 0.8.24;
 import {Test, console} from "forge-std/Test.sol";
 import {Issuer} from "../src/Issuer.sol";
 import {TokenPriceDetails} from "../src/TokenPriceDetails.sol";
-import {Test, console} from "forge-std/Test.sol";
 import {Pool} from "../src/Pool.sol";
 
 contract TokenPriceDetailsTestFacade is TokenPriceDetails {
@@ -12,7 +11,7 @@ contract TokenPriceDetailsTestFacade is TokenPriceDetails {
         _setAppraiserPrice(tokenId, epochId, appraisal);
     }
 
-    function call_getAverageAppraisal(uint256 tokenId, uint256 epochId) external returns (uint256) {
+    function call_getAverageAppraisal(uint256 tokenId, uint256 epochId) external view returns (uint256) {
         return _getAverageAppraisal(tokenId, epochId);
     }
 }

@@ -15,8 +15,9 @@ contract PoolTest is Test {
         pool = new Pool(address(token));
         token.setIssuer(address(this));
         pool.setIssuer(address(this));
-        token.mint(address(pool), 0, 100, new bytes(0), "test.url");
-        token.mint(address(pool), 1, 200, new bytes(0), "test.url");
+        vm.deal(address(this), 100 ether);
+        token.mint(address(pool), 0, 100, new bytes(0), "test1.url");
+        token.mint(address(pool), 1, 200, new bytes(0), "test2.url");
     }
 
     function test_noplan() public {
@@ -50,9 +51,9 @@ contract PoolTest is Test {
         vm.warp(block.timestamp + 1 days);
         assertEq(pool.rentDue(), 100);
         assertTrue(pool.canLiquidate());
-        pool.payRent(49);
+        pool.payRent{value: 49}(49);
         assertTrue(pool.canLiquidate());
-        pool.payRent(10);
+        pool.payRent{value: 10}(10);
         assertFalse(pool.canLiquidate());
     }
 
@@ -61,6 +62,8 @@ contract PoolTest is Test {
         token.setOraclePrice(1, 2, 30);
         uint256 expectedSafety = 200 * 30 / 10; // 200 tokens by price 30 and 10% safety
         pool.assign(1, 50, 1 days,  block.timestamp + 100 days);
+        uint256 safetyAmount = pool.safetyAmount();
+        pool.paySafety{value: safetyAmount}(safetyAmount);
         assertEq(pool.paymentDeposited(), 200 * 3 / 10);
         vm.warp(block.timestamp + 2 days);
         assertEq(pool.safetyAmount(), expectedSafety);
@@ -69,22 +72,27 @@ contract PoolTest is Test {
 
     function test_deposit_withdraw() public {
         address depositor = makeAddr("test_acc");
+        vm.deal(depositor, 100 ether);
         token.setOraclePrice(1, 0, 40);
         token.setOraclePrice(1, 1, 30);
         token.setOraclePrice(1, 2, 20);
         pool.assign(1, 50, 1 days,  block.timestamp + 100 days);
+        uint256 safety = 800;
+        pool.paySafety{value: safety}(safety);
         assertEq(pool.paymentDeposited(), 800);
         vm.warp(block.timestamp + 1 days);
         assertEq(pool.getPrice(), 30);
         vm.startPrank(depositor);
-        pool.deposit(300);
+        pool.deposit{value: 300}(300);
         assertEq(pool.paymentDeposited(), 1100);
         assertEq(token.balanceOf(depositor, 1), 10);
+        assertEq(address(pool).balance, 1100);
         vm.warp(block.timestamp + 1 days);
         token.setApprovalForAll(address(pool), true);
         pool.withdraw(5);
         assertEq(token.balanceOf(depositor, 1), 5);
         assertEq(pool.paymentDeposited(), 1000);
+        assertEq(address(pool).balance, 1000);
     }
 
     function test_claim_equal() public {
@@ -131,7 +139,8 @@ contract PoolTest is Test {
         assertEq(pool.canClaimAppraiser(a1), 79325);
         assertEq(pool.canClaimAppraiser(a2), 45670);
         vm.prank(dep);
-        pool.payRent(250000);
+        vm.deal(dep, 1 ether);
+        pool.payRent{value: 250000}(250000);
         vm.prank(a1);
         vm.expectEmit();
         emit Pool.Claim(a1, 79325);
