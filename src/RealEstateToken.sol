@@ -6,6 +6,8 @@ import {TokenPriceDetails} from "./TokenPriceDetails.sol";
 
 contract RealEstateToken is ERC1155Core, TokenPriceDetails {
 
-    constructor(string memory uri_) ERC1155Core(uri_) {
-    }
+    constructor(string memory uri_, address functionsRouterAddress)
+            ERC1155Core(uri_)
+            TokenPriceDetails(functionsRouterAddress)
+    {}
 }

@@ -3,20 +3,29 @@ pragma solidity 0.8.24;
 
 import {Roles} from "./Roles.sol";
 import {Pool} from "./Pool.sol";
-import {console} from "../lib/forge-std/src/console.sol";
+import {console} from "lib/forge-std/src/console.sol";
+import {FunctionsClient} from "lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
+import {ConfirmedOwner} from "lib/chainlink-evm/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
+import {FunctionsRequest} from "lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
+import {FunctionsSource} from "./FunctionsSource.sol";
 
-contract TokenPriceDetails is Roles {
+contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
+
+    using FunctionsRequest for FunctionsRequest.Request;
 
     error AppraiserNotAllowed(address);
     error PoolNotSet();
     error AppraisalLockTill(uint256);
     error AppraisalAlreadySet();
+    error OnlyAutomationForwarderOrOwnerCanCall();
 
     uint256 public constant APPRAISAL_LOCK_TIME = 30;
     uint256 public constant ORACLE_WEIGHT = 70;
     uint256 public constant APPRAISAL_WEIGHT = 30;
 
     Pool private i_pool;
+
+    address internal s_automationForwarderAddress;
 
     struct EpochPrice {
         uint256 oracle;
@@ -34,6 +43,19 @@ contract TokenPriceDetails is Roles {
             revert AppraiserNotAllowed(msg.sender);
         }
         _;
+    }
+
+    modifier onlyAutomationForwarderOrOwner() {
+        if (msg.sender != s_automationForwarderAddress && msg.sender != owner()) {
+            revert OnlyAutomationForwarderOrOwnerCanCall();
+        }
+        _;
+    }
+
+    constructor(address functionsRouterAddress) FunctionsClient(functionsRouterAddress) {}
+
+    function setAutomationForwarder(address automationForwarderAddress) external onlyOwner {
+        s_automationForwarderAddress = automationForwarderAddress;
     }
 
     function registerAppraiser(address appraiser) public onlyIssuerOrItself {
@@ -137,6 +159,31 @@ contract TokenPriceDetails is Roles {
 
     function setPool(address pool) external onlyIssuerOrItself {
         i_pool = Pool(pool);
+    }
+
+    function updatePriceDetails(string memory tokenId, uint64 subscriptionId, uint32 gasLimit, bytes32 donID)
+        external
+        onlyAutomationForwarderOrOwner
+        returns (bytes32 requestId)
+    {
+        FunctionsRequest.Request memory req;
+        req.initializeRequestForInlineJavaScript(this.getPrice());
+
+        string[] memory args = new string[](1);
+        args[0] = tokenId;
+
+        req.setArgs(args);
+
+        requestId = _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donID);
+    }
+
+    function fulfillRequest(bytes32, /*requestId*/ bytes memory response, bytes memory err) internal override {
+        if (err.length != 0) {
+            revert(string(err));
+        }
+
+        (uint256 tokenId, uint256 epochId, uint256 oraclePrice) = abi.decode(response, (uint256, uint256, uint256));
+        s_tokenEpochData[tokenId][epochId].oracle = oraclePrice;
     }
 
 }

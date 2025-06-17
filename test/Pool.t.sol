@@ -11,7 +11,7 @@ contract PoolTest is Test {
 
     function setUp() public {
         vm.warp(block.timestamp + 100 days);
-        token = new RealEstateToken("t.t");
+        token = new RealEstateToken("t.t", 0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0);
         pool = new Pool(address(token));
         token.setIssuer(address(this));
         pool.setIssuer(address(this));

@@ -13,7 +13,7 @@ contract IssuerTest is Test {
     Pool public pool;
 
     function setUp() public {
-        token = new RealEstateToken("t.t");
+        token = new RealEstateToken("t.t", 0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0);
         console.log("Token %s", address(token));
         pool = new Pool(address(token));
         console.log("Pool %s", address(pool));

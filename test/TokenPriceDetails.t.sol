@@ -7,12 +7,18 @@ import {Pool} from "../src/Pool.sol";
 
 contract TokenPriceDetailsTestFacade is TokenPriceDetails {
 
+    constructor() TokenPriceDetails(0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0) {}
+
     function call_setAppraiserPrice(uint256 tokenId, uint256 epochId, uint256 appraisal) external {
         _setAppraiserPrice(tokenId, epochId, appraisal);
     }
 
     function call_getAverageAppraisal(uint256 tokenId, uint256 epochId) external view returns (uint256) {
         return _getAverageAppraisal(tokenId, epochId);
+    }
+
+    function call_fulfillRequest(bytes32 a, bytes memory b, bytes memory c) external {
+        fulfillRequest(a, b, c);
     }
 }
 
@@ -106,5 +112,12 @@ contract IssuerTest is Test {
         assertEq(facade.getRewardShare(a1, 0, 0), 315789473684210526);
         assertEq(facade.getRewardShare(a2, 0, 0), 298245614035087719);
         assertEq(facade.getRewardShare(a3, 0, 0), 385964912280701754);
+    }
+
+    function test_mocked_functions() public {
+        // data for tokenId=1, epochId=2, appraisal = 100
+        bytes memory data = hex"000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000064";
+        facade.call_fulfillRequest("", data, "");
+        assertEq(facade.getEpochPrice(1, 2), 100);
     }
 }
