@@ -63,9 +63,13 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         s_appraisers.push(appraiser);
     }
 
-    function removeAppraiser(address appraiser) public onlyIssuerOrItself {
+    function removeAppraiser(address appraiser) public onlyOwner {
         // Not remove appraiser from s_appraisers because it may be have old appraisals.
         s_isAppraiser[appraiser] = false;
+    }
+
+    function isAppraiser(address appraiser) external view returns (bool) {
+        return s_isAppraiser[appraiser];
     }
 
     function _getAverageAppraisal(uint256 tokenId, uint256 epochId) internal view returns (uint256 avg) {
