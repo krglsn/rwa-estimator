@@ -58,7 +58,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         s_automationForwarderAddress = automationForwarderAddress;
     }
 
-    function registerAppraiser(address appraiser) public onlyIssuerOrItself {
+    function registerAppraiser(address appraiser) public onlyOwner {
         s_isAppraiser[appraiser] = true;
         s_appraisers.push(appraiser);
     }
