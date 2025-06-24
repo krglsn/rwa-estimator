@@ -157,8 +157,12 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         s_appraisals[msg.sender][tokenId][epochId] = appraisal;
     }
 
-    function setOraclePrice(uint256 tokenId, uint256 epochId, uint256 value) public onlyIssuerOrItself {
+    function setOraclePrice(uint256 tokenId, uint256 epochId, uint256 value) public onlyIssuerOrOwner {
         s_tokenEpochData[tokenId][epochId].oracle = value;
+    }
+
+    function getOraclePrice(uint256 tokenId, uint256 epochId) external view returns (uint256 oraclePrice) {
+        oraclePrice = s_tokenEpochData[tokenId][epochId].oracle;
     }
 
     function setPool(address pool) external onlyIssuerOrItself {
