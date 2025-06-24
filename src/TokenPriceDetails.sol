@@ -18,6 +18,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     error AppraisalLockTill(uint256);
     error AppraisalAlreadySet();
     error OnlyAutomationForwarderOrOwnerCanCall();
+    error PastAppraisalForbidden();
 
     uint256 public constant APPRAISAL_LOCK_TIME = 30;
     uint256 public constant ORACLE_WEIGHT = 70;
@@ -143,7 +144,10 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         if (address(i_pool) == address(0)) {
             revert PoolNotSet();
         }
-        (, uint256 end) = i_pool.getEpoch();
+        (uint256 currentEpoch, uint256 end) = i_pool.getEpoch();
+        if (epochId < currentEpoch) {
+            revert PastAppraisalForbidden();
+        }
         if (block.timestamp >= end - APPRAISAL_LOCK_TIME) {
             revert AppraisalLockTill(end);
         }
