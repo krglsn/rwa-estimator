@@ -96,8 +96,8 @@ contract PoolTest is Test {
     }
 
     function test_claim_equal() public {
-        token.setPool(address(pool));
         uint256 tokenId = 1;
+        token.setPool(tokenId, address(pool));
         pool.assign(tokenId, 50000, 1 days,  block.timestamp + 50 days);
         address a1 = makeAddr("acc1");
         address a2 = makeAddr("acc2");
@@ -117,8 +117,8 @@ contract PoolTest is Test {
     }
 
     function test_claim_proportions() public {
-        token.setPool(address(pool));
         uint256 tokenId = 1;
+        token.setPool(tokenId, address(pool));
         pool.assign(tokenId, 50000, 1 days,  block.timestamp + 50 days);
         address dep = makeAddr("dep");
         address a1 = makeAddr("acc1");

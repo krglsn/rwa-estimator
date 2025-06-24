@@ -24,8 +24,6 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     uint256 public constant ORACLE_WEIGHT = 70;
     uint256 public constant APPRAISAL_WEIGHT = 30;
 
-    Pool private i_pool;
-
     address internal s_automationForwarderAddress;
 
     struct EpochPrice {
@@ -33,6 +31,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         uint80 count;
     }
 
+    mapping(uint256 => address) private s_pool;
     mapping(address => bool) private s_isAppraiser;
     address[] public s_appraisers;
     mapping(uint256 tokenId => mapping(uint256 epochId => EpochPrice)) internal s_tokenEpochData;
@@ -141,10 +140,11 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     }
 
     function setAppraiserPrice(uint256 tokenId, uint256 epochId, uint256 appraisal) external onlyAppraiser {
-        if (address(i_pool) == address(0)) {
+        if (s_pool[tokenId] == address(0)) {
             revert PoolNotSet();
         }
-        (uint256 currentEpoch, uint256 end) = i_pool.getEpoch();
+        Pool pool = Pool(s_pool[tokenId]);
+        (uint256 currentEpoch, uint256 end) = pool.getEpoch();
         if (epochId < currentEpoch) {
             revert PastAppraisalForbidden();
         }
@@ -169,8 +169,12 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         oraclePrice = s_tokenEpochData[tokenId][epochId].oracle;
     }
 
-    function setPool(address pool) external onlyIssuerOrItself {
-        i_pool = Pool(pool);
+    function setPool(uint256 tokenId, address pool) external onlyIssuerOrOwner {
+        s_pool[tokenId] = pool;
+    }
+
+    function getPool(uint256 tokenId) external view returns (address pool) {
+        pool = s_pool[tokenId];
     }
 
     function updatePriceDetails(string memory tokenId, uint64 subscriptionId, uint32 gasLimit, bytes32 donID)
