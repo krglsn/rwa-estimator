@@ -145,6 +145,7 @@ contract PoolTest is Test {
         vm.expectEmit();
         emit Pool.Claim(a1, 79325);
         pool.claim();
+        assertEq(pool.canClaimAppraiser(a1), 0);
     }
 
 }

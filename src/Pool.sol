@@ -33,7 +33,6 @@ contract Pool is Roles, ReentrancyGuard {
     }
 
     uint256 public constant APPRAISER_REWARD_SHARE = 50;
-
     uint256 public constant SAFETY_PERCENT = 10;
     uint256 private tokenId;
     uint256 private startTime;
@@ -186,6 +185,7 @@ contract Pool is Roles, ReentrancyGuard {
             uint256 epochRewards = APPRAISER_REWARD_SHARE * plan.rentAmount / 100;
             rewards += epochRewards * i_realEstateToken.getRewardShare(appraiser, tokenId, i) / 1e18;
         }
+        rewards -= s_claimed[appraiser];
     }
 
     function claim() public nonReentrant {
@@ -196,6 +196,7 @@ contract Pool is Roles, ReentrancyGuard {
         (bool sent,) = msg.sender.call{value: amount}("");
         require(sent, "Claim failed");
         paidRent -= amount;
+        s_claimed[msg.sender] += amount;
         emit Claim(msg.sender, amount);
     }
 
