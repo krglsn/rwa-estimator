@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.24;
 
-import {Roles} from "./Roles.sol";
-import {Pool} from "./Pool.sol";
-import {console} from "lib/forge-std/src/console.sol";
-import {FunctionsClient} from "lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
-import {ConfirmedOwner} from "lib/chainlink-evm/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
-import {FunctionsRequest} from "lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
+import {FunctionsClient} from "../lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
+import {FunctionsRequest} from "../lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
+import {ConfirmedOwnerWithProposal} from "../lib/chainlink-evm/contracts/src/v0.8/shared/access/ConfirmedOwnerWithProposal.sol";
 import {FunctionsSource} from "./FunctionsSource.sol";
+import {Pool} from "./Pool.sol";
+import {Roles} from "./Roles.sol";
 
 contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
 
@@ -19,6 +18,8 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     error AppraisalAlreadySet();
     error OnlyAutomationForwarderOrOwnerCanCall();
     error PastAppraisalForbidden();
+    error AppraiserAlreadyRegistered();
+
 
     uint256 public constant APPRAISAL_LOCK_TIME = 30;
     uint256 public constant ORACLE_WEIGHT = 70;
@@ -59,6 +60,12 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     }
 
     function registerAppraiser(address appraiser) public onlyOwner {
+        for (uint256 i = 0; i < s_appraisers.length; i++) {
+            if (s_appraisers[i] == appraiser) {
+                revert AppraiserAlreadyRegistered();
+
+            }
+        }
         s_isAppraiser[appraiser] = true;
         s_appraisers.push(appraiser);
     }
@@ -178,9 +185,9 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     }
 
     function updatePriceDetails(string memory tokenId, uint64 subscriptionId, uint32 gasLimit, bytes32 donID)
-        external
-        onlyAutomationForwarderOrOwner
-        returns (bytes32 requestId)
+    external
+    onlyAutomationForwarderOrOwner
+    returns (bytes32 requestId)
     {
         FunctionsRequest.Request memory req;
         req.initializeRequestForInlineJavaScript(this.getPrice());

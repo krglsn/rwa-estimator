@@ -18,6 +18,7 @@ contract Pool is Roles, ReentrancyGuard {
     error NoRentToClaim();
     error MsgValueMismatch();
     error BalanceDepositMismatch();
+    error NoEpochPrice(uint256);
 
     event RentPayment(uint256);
     event Claim(address indexed user, uint256 amount);
@@ -146,6 +147,10 @@ contract Pool is Roles, ReentrancyGuard {
         if (msg.value != amountPayment) {
             revert MsgValueMismatch();
         }
+        if (this.getPrice() == 0) {
+            (uint256 epoch, ) = this.getEpoch();
+            revert NoEpochPrice(epoch);
+        }
         if (msg.value > 0) {
             uint256 amountRealEstate = amountPayment / this.getPrice();
             i_realEstateToken.safeTransferFrom(address(this), msg.sender, tokenId, amountRealEstate, "");
@@ -167,6 +172,10 @@ contract Pool is Roles, ReentrancyGuard {
     }
 
     function withdraw(uint256 amountRealEstateToken) public nonReentrant {
+        if (this.getPrice() == 0) {
+            (uint256 epoch, ) = this.getEpoch();
+            revert NoEpochPrice(epoch);
+        }
         uint256 amountPayment = amountRealEstateToken * this.getPrice();
         if (amountPayment > availableWithdraw()) {
             revert NoFundsToWithdraw();
