@@ -193,7 +193,7 @@ contract Pool is Roles, ReentrancyGuard {
         if (amount > paidRent) {
             revert NoRentToClaim();
         }
-        (bool sent,) = msg.sender.call{value: amount}("");
+        (bool sent, ) = payable(msg.sender).call{value: amount}("");
         require(sent, "Claim failed");
         paidRent -= amount;
         s_claimed[msg.sender] += amount;

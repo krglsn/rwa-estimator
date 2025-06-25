@@ -123,6 +123,8 @@ contract PoolTest is Test {
         address dep = makeAddr("dep");
         address a1 = makeAddr("acc1");
         address a2 = makeAddr("acc2");
+        vm.deal(a1, 100 ether);
+        vm.deal(a2, 100 ether);
         token.registerAppraiser(a1);
         token.registerAppraiser(a2);
         for (uint256 i = 0; i < 5; i++) {
@@ -141,11 +143,15 @@ contract PoolTest is Test {
         vm.prank(dep);
         vm.deal(dep, 1 ether);
         pool.payRent{value: 250000}(250000);
+        uint256 balanceBefore = a1.balance;
         vm.prank(a1);
         vm.expectEmit();
         emit Pool.Claim(a1, 79325);
         pool.claim();
         assertEq(pool.canClaimAppraiser(a1), 0);
+        uint256 balanceAfter = a1.balance;
+        assertGt(balanceAfter, balanceBefore);
+        assertEq(balanceAfter - balanceBefore, 79325);
     }
 
 }
