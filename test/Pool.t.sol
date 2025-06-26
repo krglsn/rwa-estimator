@@ -82,6 +82,38 @@ contract PoolTest is Test {
         assertEq(depositor.balance, 91 ether);
     }
 
+    function test_user_tokens_per_epoch() public {
+        uint256 tokenId = 1;
+        address depositor = makeAddr("test_acc");
+        vm.deal(depositor, 100 ether);
+        token.setOraclePrice(tokenId, 0, 3e18);
+        token.setOraclePrice(tokenId, 1, 3e18);
+        token.setOraclePrice(tokenId, 2, 3e18);
+        token.setOraclePrice(tokenId, 3, 3e18);
+        pool.assign(tokenId, 50, 1 days,  block.timestamp + 100 days);
+        uint256 safety = pool.safetyAmountDue();
+        pool.paySafety{value: safety}(safety);
+        vm.startPrank(depositor);
+        pool.deposit{value: 9 ether}(9 ether);
+        assertEq(token.balanceOf(depositor, tokenId), 3);
+        vm.warp(block.timestamp + 1 days);
+        vm.warp(block.timestamp + 1 days);
+        token.setApprovalForAll(address(pool), true);
+        pool.withdraw(1);
+        assertEq(token.balanceOf(depositor, tokenId), 2);
+        assertEq(depositor.balance, 94 ether);
+        vm.warp(block.timestamp + 1 days);
+        pool.deposit{value: 9 ether}(9 ether);
+        vm.warp(block.timestamp + 1 days);
+        vm.stopPrank();
+        safety = pool.safetyAmountDue();
+        pool.paySafety{value: safety}(safety);
+        assertEq(pool.getUserBalanceAtEpoch(depositor, 0), 3);
+        assertEq(pool.getUserBalanceAtEpoch(depositor, 1), 3);
+        assertEq(pool.getUserBalanceAtEpoch(depositor, 2), 2);
+        assertEq(pool.getUserBalanceAtEpoch(depositor, 3), 5);
+    }
+
     function test_deposit_withdraw() public {
         address depositor = makeAddr("test_acc");
         vm.deal(depositor, 100 ether);
