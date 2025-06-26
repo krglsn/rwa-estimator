@@ -19,6 +19,7 @@ contract Pool is Roles, ReentrancyGuard {
     error MsgValueMismatch();
     error BalanceDepositMismatch();
     error NoEpochPrice(uint256);
+    error NoEnoughBalance();
 
     event RentPayment(uint256);
     event Claim(address indexed user, uint256 amount);
@@ -136,8 +137,21 @@ contract Pool is Roles, ReentrancyGuard {
     }
 
     function getPrice() public view planAssigned returns (uint256 tokenPrice) {
+        tokenPrice = 0;
         uint256 epochNum = ( block.timestamp - startTime ) / plan.epochDuration;
         tokenPrice = i_realEstateToken.getEpochPrice(tokenId, epochNum);
+        if (tokenPrice == 0 && epochNum > 0) {
+            for (uint256 i = epochNum - 1; i < epochNum; i--) {
+                uint256 prevPrice = i_realEstateToken.getEpochPrice(tokenId, i);
+                if (prevPrice > 0) {
+                    tokenPrice = prevPrice;
+                    break;
+                }
+                if (i == 0) {
+                    break;
+                }
+            }
+        }
     }
 
     function _recordBalanceChange(address user, uint256 epoch, int256 delta) private {
@@ -158,7 +172,7 @@ contract Pool is Roles, ReentrancyGuard {
         return cumulativeBalance > 0 ? uint256(cumulativeBalance) : 0;
     }
 
-    function deposit(uint256 amountPayment) public payable nonReentrant planAssigned {
+    function deposit(uint256 amountPayment) public payable nonReentrant {
         if (msg.value != amountPayment) {
             revert MsgValueMismatch();
         }
@@ -184,15 +198,34 @@ contract Pool is Roles, ReentrancyGuard {
     }
 
     function safetyAmount() public view returns (uint256 paymentAmount) {
-        uint256 totalSupply = i_realEstateToken.totalSupply(tokenId) * this.getPrice();
-        return totalSupply * SAFETY_PERCENT / 100;
+        uint256 totalSupplyValue = i_realEstateToken.totalSupply(tokenId) * getPrice();
+        return totalSupplyValue * SAFETY_PERCENT / 100;
+
     }
 
     function availableWithdraw() public view returns (uint256 paymentAmount) {
-        if (paymentDeposited <= this.safetyAmount()) {
+        if (paymentDeposited <= safetyAmount()) {
             return 0;
         }
-        return paymentDeposited - this.safetyAmount();
+        return paymentDeposited - safetyAmount();
+    }
+
+    function withdrawOwner(uint256 amountPayment) public nonReentrant onlyIssuerOrOwner planAssigned {
+        if (amountPayment > availableWithdraw()) {
+            revert NoFundsToWithdraw();
+        }
+        (bool sent,) = payable(msg.sender).call{value: amountPayment}("");
+        require(sent, "Withdraw failed");
+        paymentDeposited -= amountPayment;
+        emit Withdraw(msg.sender, amountPayment, 0, address(i_realEstateToken));
+    }
+
+    function depositOwner(uint256 amount) public payable nonReentrant {
+        if (msg.value != amount) {
+            revert MsgValueMismatch();
+        }
+        paymentDeposited += amount;
+        emit Deposit(msg.sender, amount, 0, address(i_realEstateToken));
     }
 
     function withdraw(uint256 amountRealEstateToken) public nonReentrant {
@@ -200,6 +233,9 @@ contract Pool is Roles, ReentrancyGuard {
         if (price == 0) {
             (uint256 epoch, ) = this.getEpoch();
             revert NoEpochPrice(epoch);
+        }
+        if (amountRealEstateToken > i_realEstateToken.balanceOf(msg.sender, tokenId)) {
+            revert NoEnoughBalance();
         }
         uint256 amountPayment = amountRealEstateToken * price;
         if (amountPayment > availableWithdraw()) {

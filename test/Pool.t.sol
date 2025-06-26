@@ -70,6 +70,19 @@ contract PoolTest is Test {
         assertEq(pool.availableWithdraw(), 0);
     }
 
+    function test_available_withdraw() public {
+        token.setOraclePrice(1, 0, 3);
+        token.setOraclePrice(1, 2, 30);
+        uint256 expectedSafety = 200 * 30 / 10; // 200 tokens by price 30 and 10% safety
+        pool.assign(1, 50, 1 days,  block.timestamp + 100 days);
+        uint256 safetyAmount = pool.safetyAmount();
+        pool.paySafety{value: safetyAmount}(safetyAmount);
+        assertEq(pool.paymentDeposited(), 200 * 3 / 10);
+        vm.warp(block.timestamp + 2 days);
+        assertEq(pool.safetyAmount(), expectedSafety);
+        assertEq(pool.availableWithdraw(), 0);
+    }
+
     function test_deposit_rounding() public {
         uint256 tokenId = 1;
         address depositor = makeAddr("test_acc");
