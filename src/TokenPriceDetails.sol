@@ -63,7 +63,6 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         for (uint256 i = 0; i < s_appraisers.length; i++) {
             if (s_appraisers[i] == appraiser) {
                 revert AppraiserAlreadyRegistered();
-
             }
         }
         s_isAppraiser[appraiser] = true;
@@ -187,9 +186,9 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     }
 
     function updatePriceDetails(string memory tokenId, uint64 subscriptionId, uint32 gasLimit, bytes32 donID)
-    external
-    onlyAutomationForwarderOrOwner
-    returns (bytes32 requestId)
+        external
+        onlyAutomationForwarderOrOwner
+        returns (bytes32 requestId)
     {
         FunctionsRequest.Request memory req;
         req.initializeRequestForInlineJavaScript(this.getPrice());
@@ -210,5 +209,4 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         (uint256 tokenId, uint256 epochId, uint256 oraclePrice) = abi.decode(response, (uint256, uint256, uint256));
         s_tokenEpochData[tokenId][epochId].oracle = oraclePrice;
     }
-
 }
