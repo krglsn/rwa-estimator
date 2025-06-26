@@ -113,6 +113,8 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         uint256 appraisal = _getAverageAppraisal(tokenId, epochId);
         if (appraisal == 0) {
             price = oracle;
+        } else if (oracle == 0) {
+            price = appraisal;
         } else {
             price = (ORACLE_WEIGHT * oracle + APPRAISAL_WEIGHT * appraisal) / 100;
         }
