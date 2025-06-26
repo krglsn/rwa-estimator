@@ -139,6 +139,26 @@ contract PoolTest is Test {
         assertEq(address(pool).balance, 1000);
     }
 
+    function test_depositor_claim_share() public {
+        uint256 tokenId = 0;
+        address depositor = makeAddr("test_acc");
+        vm.deal(depositor, 100 ether);
+        pool.assign(tokenId, 1e16, 1 days,  block.timestamp + 100 days);
+        token.setOraclePrice(tokenId, 0, 3e18);
+        token.setOraclePrice(tokenId, 1, 3e18);
+        vm.prank(depositor);
+        pool.deposit{value: 9 ether}(9 ether);
+        assertEq(token.balanceOf(depositor, tokenId), 3);
+        vm.warp(block.timestamp + 1 days);
+        uint256 safety = pool.safetyAmountDue();
+        pool.paySafety{value: safety}(safety);
+        uint256 rent = pool.rentDue();
+        pool.payRent{value: rent}(rent);
+        uint256 claimable = pool.canClaimDepositor(depositor);
+        // claimable is 3 / 100 tokens for 2 epochs of (1e16 rent minus APPRAISER_REWARD_SHARE) => 3e14
+        assertEq(claimable, 3e14);
+    }
+
     function test_claim_equal() public {
         uint256 tokenId = 1;
         token.setPool(tokenId, address(pool));
@@ -191,7 +211,7 @@ contract PoolTest is Test {
         vm.prank(a1);
         vm.expectEmit();
         emit Pool.Claim(a1, 79325);
-        pool.claim();
+        pool.claimAppraiser();
         assertEq(pool.canClaimAppraiser(a1), 0);
         uint256 balanceAfter = a1.balance;
         assertGt(balanceAfter, balanceBefore);

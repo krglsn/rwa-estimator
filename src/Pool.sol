@@ -26,6 +26,7 @@ contract Pool is Roles, ReentrancyGuard {
     event Withdraw(address indexed user, uint256 withdrawn, uint256 sent, address token);
 
     mapping(address appraiser => uint256) private s_claimed;
+    mapping(address depositor => uint256) private s_claimedDepositor;
     mapping(address => mapping(uint256 => int256)) private s_userEpochRealEstateDeltas;
     mapping(address => uint256[]) private s_userActiveEpochs;
 
@@ -223,7 +224,28 @@ contract Pool is Roles, ReentrancyGuard {
         rewards -= s_claimed[appraiser];
     }
 
-    function claim() public nonReentrant {
+    function canClaimDepositor(address depositor) public view returns (uint256) {
+        (uint256 currentEpoch, ) = getEpoch();
+        uint256 totalClaimable = 0;
+        uint256 totalSupply = i_realEstateToken.totalSupply(tokenId);
+        require(totalSupply > 0, "Zero total supply");
+        for (uint256 epoch = 1; epoch <= currentEpoch; epoch++) {
+            uint256 userBalance = getUserBalanceAtEpoch(depositor, epoch);
+            if (userBalance == 0) {
+                continue;
+            }
+            uint256 userShare = (userBalance * 1e18) / totalSupply;
+            uint256 epochClaimable = (plan.rentAmount * userShare) / 1e18;
+            totalClaimable += epochClaimable;
+        }
+        uint256 alreadyClaimed = s_claimedDepositor[depositor];
+        if (totalClaimable <= alreadyClaimed) {
+            return 0;
+        }
+        return totalClaimable - alreadyClaimed;
+    }
+
+    function claimAppraiser() public nonReentrant {
         uint256 amount = canClaimAppraiser(msg.sender);
         if (amount > paidRent) {
             revert NoRentToClaim();
@@ -232,6 +254,18 @@ contract Pool is Roles, ReentrancyGuard {
         require(sent, "Claim failed");
         paidRent -= amount;
         s_claimed[msg.sender] += amount;
+        emit Claim(msg.sender, amount);
+    }
+
+    function claimDepositor() public nonReentrant {
+        uint256 amount = canClaimDepositor(msg.sender);
+        if (amount > paidRent) {
+            revert NoRentToClaim();
+        }
+        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        require(sent, "Claim failed");
+        paidRent -= amount;
+        s_claimedDepositor[msg.sender] += amount;
         emit Claim(msg.sender, amount);
     }
 
