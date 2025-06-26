@@ -10,9 +10,9 @@ contract Pool is Roles, ReentrancyGuard {
 
     error TokenIdNotFound();
     error InvalidProgramEnd();
-    error PlanNotAssigned();
+    error PlanNotAssigned();  // 0xc4b1faa8
     error ProgramFinished();
-    error NoFundsToWithdraw();
+    error NoFundsToWithdraw();  // 0x67e3990d
     error NoSafetyBalance(uint256);
     error TooShortEpoch();
     error NoRentToClaim();
@@ -147,15 +147,22 @@ contract Pool is Roles, ReentrancyGuard {
         if (msg.value != amountPayment) {
             revert MsgValueMismatch();
         }
+        uint256 tokenPrice = this.getPrice();
         if (this.getPrice() == 0) {
             (uint256 epoch, ) = this.getEpoch();
             revert NoEpochPrice(epoch);
         }
         if (msg.value > 0) {
-            uint256 amountRealEstate = amountPayment / this.getPrice();
+            uint256 amountRealEstate = amountPayment / tokenPrice;
+            uint256 exactPayment = amountRealEstate * tokenPrice;
             i_realEstateToken.safeTransferFrom(address(this), msg.sender, tokenId, amountRealEstate, "");
-            paymentDeposited += amountPayment;
-            emit Deposit(msg.sender, amountPayment, amountRealEstate, address(i_realEstateToken));
+            paymentDeposited += exactPayment;
+            uint256 refund = amountPayment - exactPayment;
+            if (refund > 0) {
+                (bool success, ) = payable(msg.sender).call{value: refund}("");
+                require(success, "Refund failed");
+            }
+            emit Deposit(msg.sender, exactPayment, amountRealEstate, address(i_realEstateToken));
         }
     }
 
@@ -181,7 +188,7 @@ contract Pool is Roles, ReentrancyGuard {
             revert NoFundsToWithdraw();
         }
         i_realEstateToken.safeTransferFrom(msg.sender, address(this), tokenId, amountRealEstateToken, "");
-        (bool sent,) = msg.sender.call{value: amountPayment}("");
+        (bool sent,) = payable(msg.sender).call{value: amountPayment}("");
         require(sent, "Withdraw failed");
         paymentDeposited -= amountPayment;
         emit Withdraw(msg.sender, amountPayment, amountRealEstateToken, address(i_realEstateToken));

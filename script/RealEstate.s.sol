@@ -34,7 +34,7 @@ contract DeployAll is Script {
         token.setIssuer(address(issuer));
         pool.setIssuer(address(issuer));
 
-        issuer.issue("test.url", address(pool), 100, 100000, 3600, 1907577068);
+        issuer.issue("test.url", address(pool), 100, 5e16, 3600, 1907577068);
 
         console.log("RealEstateToken at:", address(token));
         console.log("Pool at:", address(pool));

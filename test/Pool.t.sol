@@ -70,6 +70,18 @@ contract PoolTest is Test {
         assertEq(pool.availableWithdraw(), 0);
     }
 
+    function test_deposit_rounding() public {
+        uint256 tokenId = 1;
+        address depositor = makeAddr("test_acc");
+        vm.deal(depositor, 100 ether);
+        token.setOraclePrice(tokenId, 0, 3e18);
+        pool.assign(tokenId, 50, 1 days,  block.timestamp + 100 days);
+        vm.startPrank(depositor);
+        pool.deposit{value: 10 ether}(10 ether);
+        assertEq(token.balanceOf(depositor, tokenId), 3);
+        assertEq(depositor.balance, 91 ether);
+    }
+
     function test_deposit_withdraw() public {
         address depositor = makeAddr("test_acc");
         vm.deal(depositor, 100 ether);
