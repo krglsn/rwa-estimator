@@ -265,7 +265,7 @@ contract Pool is Roles, ReentrancyGuard {
         uint256 totalClaimable = 0;
         uint256 totalSupply = i_realEstateToken.totalSupply(tokenId);
         require(totalSupply > 0, "Zero total supply");
-        for (uint256 epoch = 1; epoch <= currentEpoch; epoch++) {
+        for (uint256 epoch = 1; epoch < currentEpoch; epoch++) {
             uint256 userBalance = getUserBalanceAtEpoch(depositor, epoch);
             if (userBalance == 0) {
                 continue;
