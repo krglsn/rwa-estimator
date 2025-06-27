@@ -6,14 +6,12 @@ import {OwnerIsCreator} from "lib/chainlink-evm/contracts/src/v0.8/shared/access
 import {TokenPriceDetails} from "./TokenPriceDetails.sol";
 import {Pool} from "./Pool.sol";
 
-
 /**
  * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED VALUES FOR CLARITY.
  * THIS IS AN EXAMPLE CONTRACT THAT USES UN-AUDITED CODE.
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract Issuer is OwnerIsCreator {
-
     struct FractionalizedNft {
         address to;
         uint256 amount;
@@ -47,8 +45,7 @@ contract Issuer is OwnerIsCreator {
         uint256 rentAmount_,
         uint256 epochDuration_,
         uint256 programEnd_
-    ) external onlyOwner returns (uint256 tokenId)
-    {
+    ) external onlyOwner returns (uint256 tokenId) {
         i_realEstateToken.mint(pool_, s_currentId, amount_, new bytes(0), uri_);
         i_pool = Pool(pool_);
         i_pool.assign(s_currentId, rentAmount_, epochDuration_, programEnd_);
@@ -56,5 +53,4 @@ contract Issuer is OwnerIsCreator {
         s_currentId++;
         return s_currentId - 1;
     }
-
 }

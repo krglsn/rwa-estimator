@@ -11,12 +11,11 @@ import "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract Pool is Roles, ReentrancyGuard {
-
     error TokenIdNotFound();
     error InvalidProgramEnd();
-    error PlanNotAssigned();  // 0xc4b1faa8
+    error PlanNotAssigned(); // 0xc4b1faa8
     error ProgramFinished();
-    error NoFundsToWithdraw();  // 0x67e3990d
+    error NoFundsToWithdraw(); // 0x67e3990d
     error NoSafetyBalance(uint256);
     error TooShortEpoch();
     error NoRentToClaim();
@@ -65,7 +64,7 @@ contract Pool is Roles, ReentrancyGuard {
         _;
     }
 
-    constructor(address realEstateToken){
+    constructor(address realEstateToken) {
         i_realEstateToken = RealEstateToken(realEstateToken);
     }
 
@@ -77,7 +76,12 @@ contract Pool is Roles, ReentrancyGuard {
      * @param epochDuration_ Payment interval
      * @param programEnd_ End of rent obligations
      */
-    function assign(uint256 tokenId_, uint256 rentAmount_, uint256 epochDuration_, uint256 programEnd_) external payable nonReentrant onlyIssuerOrItself {
+    function assign(uint256 tokenId_, uint256 rentAmount_, uint256 epochDuration_, uint256 programEnd_)
+        external
+        payable
+        nonReentrant
+        onlyIssuerOrItself
+    {
         if (!i_realEstateToken.exists(tokenId_)) {
             revert TokenIdNotFound();
         }
@@ -91,23 +95,13 @@ contract Pool is Roles, ReentrancyGuard {
             revert InvalidProgramEnd();
         }
         tokenId = tokenId_;
-        plan = UsagePlan({
-            rentAmount: rentAmount_,
-            epochDuration: epochDuration_,
-            programEnd: programEnd_
-        });
+        plan = UsagePlan({rentAmount: rentAmount_, epochDuration: epochDuration_, programEnd: programEnd_});
     }
 
     /**
      * @notice Generic function to support ERC1155 transfers
      */
-    function onERC1155Received(
-        address,
-        address,
-        uint256,
-        uint256,
-        bytes calldata
-    ) external pure returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC1155Received.selector;
     }
 
@@ -267,7 +261,6 @@ contract Pool is Roles, ReentrancyGuard {
     function safetyAmount() public view returns (uint256 paymentAmount) {
         uint256 totalSupplyValue = i_realEstateToken.totalSupply(tokenId) * getPrice();
         return totalSupplyValue * SAFETY_PERCENT / 100;
-
     }
 
     /**
@@ -328,7 +321,7 @@ contract Pool is Roles, ReentrancyGuard {
         i_realEstateToken.safeTransferFrom(msg.sender, address(this), tokenId, amountRealEstateToken, "");
         (bool sent,) = payable(msg.sender).call{value: amountPayment}("");
         require(sent, "Withdraw failed");
-        _recordBalanceChange(msg.sender, epochId, - int256(amountRealEstateToken));
+        _recordBalanceChange(msg.sender, epochId, -int256(amountRealEstateToken));
         paymentDeposited -= amountPayment;
         emit Withdraw(msg.sender, amountPayment, amountRealEstateToken, address(i_realEstateToken));
     }
@@ -399,5 +392,4 @@ contract Pool is Roles, ReentrancyGuard {
         s_claimedDepositor[msg.sender] += amount;
         emit Claim(msg.sender, amount);
     }
-
 }

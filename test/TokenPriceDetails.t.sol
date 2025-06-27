@@ -11,9 +11,7 @@ import {TokenPriceDetails} from "../src/TokenPriceDetails.sol";
 import {MockPool, TokenPriceDetailsTestFacade} from "./TokenPriceDetails.t.sol";
 
 contract TokenPriceDetailsTestFacade is TokenPriceDetails {
-
     mapping(uint256 => MockPool) private _mockPools;
-
 
     constructor() TokenPriceDetails(0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0) {}
 
@@ -34,11 +32,9 @@ contract TokenPriceDetailsTestFacade is TokenPriceDetails {
         setPool(tokenId, address(_mockPools[tokenId]));
     }
 
-
     function call_fulfillRequest(bytes32 a, bytes memory b, bytes memory c) external {
         fulfillRequest(a, b, c);
     }
-
 }
 
 contract MockPool {
@@ -60,7 +56,6 @@ contract MockPool {
     }
 }
 
-
 contract IssuerTest is Test {
     TokenPriceDetailsTestFacade public facade;
     address public target;
@@ -70,7 +65,6 @@ contract IssuerTest is Test {
         facade = new TokenPriceDetailsTestFacade();
         facade.setIssuer(address(this));
         target = makeAddr("test_acc");
-
     }
 
     function test_appraiser() public {
@@ -157,7 +151,8 @@ contract IssuerTest is Test {
     function test_mocked_functions() public {
         facade.setupMockPool(0, 2, block.timestamp + 1 days);
         // data for tokenId=0, price = 1034
-        bytes memory data = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040a";
+        bytes memory data =
+            hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040a";
         facade.call_fulfillRequest("", data, "");
         assertEq(facade.getEpochPrice(0, 2), 1034);
     }

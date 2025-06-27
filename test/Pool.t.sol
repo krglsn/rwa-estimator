@@ -29,7 +29,7 @@ contract PoolTest is Test {
         uint256 start = block.timestamp;
         uint256 end = start + 1 days;
         console.log("End time %s", end);
-        pool.assign(1, 10, 3600,  end);
+        pool.assign(1, 10, 3600, end);
         (uint256 epochNumber, uint256 epochEnd) = pool.getEpoch();
         assertEq(epochNumber, 0);
         assertEq(epochEnd, start + 3599);
@@ -44,7 +44,7 @@ contract PoolTest is Test {
     function test_liquidability() public {
         uint256 start = block.timestamp;
         uint256 end = start + 10 days;
-        pool.assign(1, 50, 1 days,  end);
+        pool.assign(1, 50, 1 days, end);
         vm.warp(block.timestamp + 8 hours);
         assertEq(pool.rentDue(), 50);
         assertFalse(pool.canLiquidate());
@@ -61,7 +61,7 @@ contract PoolTest is Test {
         token.setOraclePrice(1, 0, 3);
         token.setOraclePrice(1, 2, 30);
         uint256 expectedSafety = 200 * 30 / 10; // 200 tokens by price 30 and 10% safety
-        pool.assign(1, 50, 1 days,  block.timestamp + 100 days);
+        pool.assign(1, 50, 1 days, block.timestamp + 100 days);
         uint256 safetyAmount = pool.safetyAmount();
         pool.paySafety{value: safetyAmount}(safetyAmount);
         assertEq(pool.paymentDeposited(), 200 * 3 / 10);
@@ -74,7 +74,7 @@ contract PoolTest is Test {
         token.setOraclePrice(1, 0, 3);
         token.setOraclePrice(1, 2, 30);
         uint256 expectedSafety = 200 * 30 / 10; // 200 tokens by price 30 and 10% safety
-        pool.assign(1, 50, 1 days,  block.timestamp + 100 days);
+        pool.assign(1, 50, 1 days, block.timestamp + 100 days);
         uint256 safetyAmount = pool.safetyAmount();
         pool.paySafety{value: safetyAmount}(safetyAmount);
         assertEq(pool.paymentDeposited(), 200 * 3 / 10);
@@ -88,7 +88,7 @@ contract PoolTest is Test {
         address depositor = makeAddr("test_acc");
         vm.deal(depositor, 100 ether);
         token.setOraclePrice(tokenId, 0, 3e18);
-        pool.assign(tokenId, 50, 1 days,  block.timestamp + 100 days);
+        pool.assign(tokenId, 50, 1 days, block.timestamp + 100 days);
         vm.startPrank(depositor);
         pool.deposit{value: 10 ether}(10 ether);
         assertEq(token.balanceOf(depositor, tokenId), 3);
@@ -103,7 +103,7 @@ contract PoolTest is Test {
         token.setOraclePrice(tokenId, 1, 3e18);
         token.setOraclePrice(tokenId, 2, 3e18);
         token.setOraclePrice(tokenId, 3, 3e18);
-        pool.assign(tokenId, 50, 1 days,  block.timestamp + 100 days);
+        pool.assign(tokenId, 50, 1 days, block.timestamp + 100 days);
         uint256 safety = pool.safetyAmountDue();
         pool.paySafety{value: safety}(safety);
         vm.startPrank(depositor);
@@ -133,7 +133,7 @@ contract PoolTest is Test {
         token.setOraclePrice(1, 0, 40);
         token.setOraclePrice(1, 1, 30);
         token.setOraclePrice(1, 2, 20);
-        pool.assign(1, 50, 1 days,  block.timestamp + 100 days);
+        pool.assign(1, 50, 1 days, block.timestamp + 100 days);
         uint256 safety = 800;
         pool.paySafety{value: safety}(safety);
         assertEq(pool.paymentDeposited(), 800);
@@ -156,7 +156,7 @@ contract PoolTest is Test {
         uint256 tokenId = 0;
         address depositor = makeAddr("test_acc");
         vm.deal(depositor, 100 ether);
-        pool.assign(tokenId, 1e16, 1 days,  block.timestamp + 100 days);
+        pool.assign(tokenId, 1e16, 1 days, block.timestamp + 100 days);
         token.setOraclePrice(tokenId, 0, 3e18);
         token.setOraclePrice(tokenId, 1, 3e18);
         vm.prank(depositor);
@@ -176,7 +176,7 @@ contract PoolTest is Test {
     function test_claim_equal() public {
         uint256 tokenId = 1;
         token.setPool(tokenId, address(pool));
-        pool.assign(tokenId, 50000, 1 days,  block.timestamp + 50 days);
+        pool.assign(tokenId, 50000, 1 days, block.timestamp + 50 days);
         address a1 = makeAddr("acc1");
         address a2 = makeAddr("acc2");
         token.registerAppraiser(a1);
@@ -197,7 +197,7 @@ contract PoolTest is Test {
     function test_claim_proportions() public {
         uint256 tokenId = 1;
         token.setPool(tokenId, address(pool));
-        pool.assign(tokenId, 50000, 1 days,  block.timestamp + 50 days);
+        pool.assign(tokenId, 50000, 1 days, block.timestamp + 50 days);
         address dep = makeAddr("dep");
         address a1 = makeAddr("acc1");
         address a2 = makeAddr("acc2");
@@ -231,5 +231,4 @@ contract PoolTest is Test {
         assertGt(balanceAfter, balanceBefore);
         assertEq(balanceAfter - balanceBefore, 79325);
     }
-
 }

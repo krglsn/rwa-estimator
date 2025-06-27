@@ -73,5 +73,4 @@ contract IssuerTest is Test {
         vm.expectRevert(TokenPriceDetails.AppraisalAlreadySet.selector);
         token.setAppraiserPrice(tokenId, 0, 2);
     }
-
 }

@@ -3,7 +3,8 @@ pragma solidity 0.8.24;
 
 import {FunctionsClient} from "../lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
 import {FunctionsRequest} from "../lib/chainlink-evm/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
-import {ConfirmedOwnerWithProposal} from "../lib/chainlink-evm/contracts/src/v0.8/shared/access/ConfirmedOwnerWithProposal.sol";
+import {ConfirmedOwnerWithProposal} from
+    "../lib/chainlink-evm/contracts/src/v0.8/shared/access/ConfirmedOwnerWithProposal.sol";
 import {FunctionsSource} from "./FunctionsSource.sol";
 import {Pool} from "./Pool.sol";
 import {Roles} from "./Roles.sol";
@@ -14,7 +15,6 @@ import {Roles} from "./Roles.sol";
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
-
     using FunctionsRequest for FunctionsRequest.Request;
 
     error AppraiserNotAllowed(address);
@@ -262,7 +262,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
             revert PoolNotSet();
         }
         Pool pool = Pool(s_pool[tokenId]);
-        (uint256 epochId, ) = pool.getEpoch();
+        (uint256 epochId,) = pool.getEpoch();
         s_tokenEpochData[tokenId][epochId].oracle = oraclePrice;
     }
 }
