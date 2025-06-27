@@ -167,6 +167,7 @@ contract PoolTest is Test {
         pool.paySafety{value: safety}(safety);
         uint256 rent = pool.rentDue();
         pool.payRent{value: rent}(rent);
+        vm.warp(block.timestamp + 1 days);
         uint256 claimable = pool.canClaimDepositor(depositor);
         // claimable is 3 / 100 tokens for 2 epochs of (1e16 rent minus APPRAISER_REWARD_SHARE) => 3e14
         assertEq(claimable, 3e14);
