@@ -29,6 +29,17 @@ contract Issuer is OwnerIsCreator {
         i_realEstateToken = RealEstateToken(realEstateToken_);
     }
 
+    /**
+     * @notice Associates ERC1155 tokenId with RWA, assigns pool to tokenId and mints specified token amount to that pool.
+     * @dev Pool contract should be deployed prior to issue.
+     * @dev After issue, make sure to call setIssuer() on both token and pool contracts.
+     * @param uri_ NFT token metadata (IPFS json)
+     * @param pool_ Pool address
+     * @param amount_ Token amount to mint
+     * @param rentAmount_ Rent amount to be paid in accordance with Pool Plan
+     * @param epochDuration_ Rent payment interval
+     * @param programEnd_ End of rent program, unix timestamp in seconds
+     */
     function issue(
         string calldata uri_,
         address pool_,

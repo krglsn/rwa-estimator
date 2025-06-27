@@ -1,11 +1,15 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
 import {RealEstateToken} from "./RealEstateToken.sol";
 import {Roles} from "./Roles.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
-
+/**
+ * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED VALUES FOR CLARITY.
+ * THIS IS AN EXAMPLE CONTRACT THAT USES UN-AUDITED CODE.
+ * DO NOT USE THIS CODE IN PRODUCTION.
+ */
 contract Pool is Roles, ReentrancyGuard {
 
     error TokenIdNotFound();
@@ -31,15 +35,18 @@ contract Pool is Roles, ReentrancyGuard {
     mapping(address => mapping(uint256 => int256)) private s_userEpochRealEstateDeltas;
     mapping(address => uint256[]) private s_userActiveEpochs;
 
-
     struct UsagePlan {
         uint256 rentAmount;
         uint256 epochDuration;
         uint256 programEnd;
     }
 
+    // Rent payments are split for rewards to Appraisers and Depositors
     uint256 public constant APPRAISER_REWARD_SHARE = 50;
+
+    // Pool has safety margin of deposited funds that cannot be withdrawn till program end
     uint256 public constant SAFETY_PERCENT = 10;
+
     uint256 private tokenId;
     uint256 private startTime;
     uint256 paidRent;
@@ -62,6 +69,14 @@ contract Pool is Roles, ReentrancyGuard {
         i_realEstateToken = RealEstateToken(realEstateToken);
     }
 
+    /**
+     * @notice Assign payment plan to tokenId
+     * @dev
+     * @param tokenId_ ERC1155 tokenId to associate this pool with
+     * @param rentAmount_ Amount to pay rent per single payment interval
+     * @param epochDuration_ Payment interval
+     * @param programEnd_ End of rent obligations
+     */
     function assign(uint256 tokenId_, uint256 rentAmount_, uint256 epochDuration_, uint256 programEnd_) external payable nonReentrant onlyIssuerOrItself {
         if (!i_realEstateToken.exists(tokenId_)) {
             revert TokenIdNotFound();
@@ -83,6 +98,9 @@ contract Pool is Roles, ReentrancyGuard {
         });
     }
 
+    /**
+     * @notice Generic function to support ERC1155 transfers
+     */
     function onERC1155Received(
         address,
         address,
@@ -93,18 +111,29 @@ contract Pool is Roles, ReentrancyGuard {
         return this.onERC1155Received.selector;
     }
 
+    /**
+     * @notice Get current epoch info
+     * @return epochNumber
+     * @return epochEndTime last timestamp of current epoch
+     */
     function getEpoch() public view planAssigned returns (uint256 epochNumber, uint256 epochEndTime) {
         uint256 nowTime = block.timestamp;
-        epochNumber = ( nowTime - startTime ) / plan.epochDuration;
+        epochNumber = (nowTime - startTime) / plan.epochDuration;
         epochEndTime = startTime + plan.epochDuration * (epochNumber + 1) - 1;
     }
 
+    /**
+     * @notice Get rent amount to be paid in current epoch
+     */
     function rentDue() public view planAssigned returns (uint256 remainingRent) {
         uint256 nowTime = block.timestamp;
         uint256 totalRent = plan.rentAmount * ((nowTime - startTime) / plan.epochDuration + 1);
         remainingRent = totalRent - paidRent;
     }
 
+    /**
+     * @notice Get amount to keep safety margin in current epoch, depends on current pricing.
+     */
     function safetyAmountDue() public view planAssigned returns (uint256 remainingAmount) {
         if (safetyAmount() > paymentDeposited) {
             return safetyAmount() - paymentDeposited;
@@ -112,6 +141,10 @@ contract Pool is Roles, ReentrancyGuard {
         return 0;
     }
 
+    /**
+     * @notice Pay rent
+     * @param amount could be any, but see rentDue() also
+     */
     function payRent(uint256 amount) public payable nonReentrant planAssigned {
         if (msg.value != amount) {
             revert MsgValueMismatch();
@@ -120,6 +153,10 @@ contract Pool is Roles, ReentrancyGuard {
         emit RentPayment(amount);
     }
 
+    /**
+     * @notice pay deposit to increase safety margin
+     * @param amount could be any but see also SafetyAmountDue
+     */
     function paySafety(uint256 amount) public payable nonReentrant planAssigned {
         if (msg.value != amount) {
             revert MsgValueMismatch();
@@ -128,17 +165,36 @@ contract Pool is Roles, ReentrancyGuard {
         emit Deposit(msg.sender, amount, 0, address(i_realEstateToken));
     }
 
+    /**
+     * @notice Check if asset could be liquidated (transfered to another owner)
+     * @dev assed is liquidable if rent payment interval missed
+     * @dev TODO: liquidation condition could be more complex and involve safety deposit also
+     */
     function canLiquidate() public view planAssigned returns (bool) {
         return this.rentDue() > plan.rentAmount;
     }
 
+    /**
+     * @notice function to transfer asset ownership by paying rent and safety debts
+     * @dev This function not implemented due to time restrictions.
+     * @dev Basically it should involve more roles and simply transfer ownership
+     * @dev when rent and safety debts are paid.
+     */
+    function liquidate() public {}
+
+    /**
+     * @notice get parameters of plan associated with this pool.
+     */
     function getPlan() public view planAssigned returns (UsagePlan memory) {
         return plan;
     }
 
+    /**
+     * @notice Get current weighted price at the current epoch.
+     */
     function getPrice() public view planAssigned returns (uint256 tokenPrice) {
         tokenPrice = 0;
-        uint256 epochNum = ( block.timestamp - startTime ) / plan.epochDuration;
+        uint256 epochNum = (block.timestamp - startTime) / plan.epochDuration;
         tokenPrice = i_realEstateToken.getEpochPrice(tokenId, epochNum);
         if (tokenPrice == 0 && epochNum > 0) {
             for (uint256 i = epochNum - 1; i < epochNum; i--) {
@@ -161,6 +217,9 @@ contract Pool is Roles, ReentrancyGuard {
         s_userEpochRealEstateDeltas[user][epoch] += delta;
     }
 
+    /**
+     * @notice Get user (depositor) token balance at specific epoch.
+     */
     function getUserBalanceAtEpoch(address user, uint256 targetEpoch) public view returns (uint256) {
         int256 cumulativeBalance = 0;
         for (uint256 i = 0; i < s_userActiveEpochs[user].length; i++) {
@@ -172,17 +231,21 @@ contract Pool is Roles, ReentrancyGuard {
         return cumulativeBalance > 0 ? uint256(cumulativeBalance) : 0;
     }
 
+    /**
+     * @notice Deposit Native token into contract and get corresponding Token amount.
+     * @param amountPayment native amount, actual payment will be rounded per Token current price.
+     */
     function deposit(uint256 amountPayment) public payable nonReentrant {
         if (msg.value != amountPayment) {
             revert MsgValueMismatch();
         }
         uint256 tokenPrice = this.getPrice();
         if (this.getPrice() == 0) {
-            (uint256 epoch, ) = this.getEpoch();
+            (uint256 epoch,) = this.getEpoch();
             revert NoEpochPrice(epoch);
         }
         if (msg.value > 0) {
-            (uint256 epochId, ) = this.getEpoch();
+            (uint256 epochId,) = this.getEpoch();
             uint256 amountRealEstate = amountPayment / tokenPrice;
             uint256 exactPayment = amountRealEstate * tokenPrice;
             i_realEstateToken.safeTransferFrom(address(this), msg.sender, tokenId, amountRealEstate, "");
@@ -190,19 +253,27 @@ contract Pool is Roles, ReentrancyGuard {
             paymentDeposited += exactPayment;
             uint256 refund = amountPayment - exactPayment;
             if (refund > 0) {
-                (bool success, ) = payable(msg.sender).call{value: refund}("");
+                (bool success,) = payable(msg.sender).call{value: refund}("");
                 require(success, "Refund failed");
             }
             emit Deposit(msg.sender, exactPayment, amountRealEstate, address(i_realEstateToken));
         }
     }
 
+    /**
+     * @notice Get value of total safetyAmount required to be in pool.
+     * @dev see also safetyAmountDue()
+     */
     function safetyAmount() public view returns (uint256 paymentAmount) {
         uint256 totalSupplyValue = i_realEstateToken.totalSupply(tokenId) * getPrice();
         return totalSupplyValue * SAFETY_PERCENT / 100;
 
     }
 
+    /**
+     * @notice total native amount available to withdraw from pool by owner.
+     * @dev this is also the limit for depositors to take out.
+     */
     function availableWithdraw() public view returns (uint256 paymentAmount) {
         if (paymentDeposited <= safetyAmount()) {
             return 0;
@@ -210,6 +281,10 @@ contract Pool is Roles, ReentrancyGuard {
         return paymentDeposited - safetyAmount();
     }
 
+    /**
+     * @notice withdraw native token from pool by owner, with respect to safetyDeposit.
+     * @dev TODO: emergence withdraw should be implemented separately.
+     */
     function withdrawOwner(uint256 amountPayment) public nonReentrant onlyIssuerOrOwner planAssigned {
         if (amountPayment > availableWithdraw()) {
             revert NoFundsToWithdraw();
@@ -220,6 +295,9 @@ contract Pool is Roles, ReentrancyGuard {
         emit Withdraw(msg.sender, amountPayment, 0, address(i_realEstateToken));
     }
 
+    /**
+     * @notice deposit (repay) native token by owner.
+     */
     function depositOwner(uint256 amount) public payable nonReentrant {
         if (msg.value != amount) {
             revert MsgValueMismatch();
@@ -228,10 +306,15 @@ contract Pool is Roles, ReentrancyGuard {
         emit Deposit(msg.sender, amount, 0, address(i_realEstateToken));
     }
 
+    /**
+     * @notice withdraw native token from pool by swapping Token
+     * @dev approval should be set to Token prior to this call
+     * @param amountRealEstateToken token amount that user wants to swap back to native.
+     */
     function withdraw(uint256 amountRealEstateToken) public nonReentrant {
         uint256 price = getPrice();
         if (price == 0) {
-            (uint256 epoch, ) = this.getEpoch();
+            (uint256 epoch,) = this.getEpoch();
             revert NoEpochPrice(epoch);
         }
         if (amountRealEstateToken > i_realEstateToken.balanceOf(msg.sender, tokenId)) {
@@ -241,18 +324,21 @@ contract Pool is Roles, ReentrancyGuard {
         if (amountPayment > availableWithdraw()) {
             revert NoFundsToWithdraw();
         }
-        (uint256 epochId, ) = getEpoch();
+        (uint256 epochId,) = getEpoch();
         i_realEstateToken.safeTransferFrom(msg.sender, address(this), tokenId, amountRealEstateToken, "");
         (bool sent,) = payable(msg.sender).call{value: amountPayment}("");
         require(sent, "Withdraw failed");
-        _recordBalanceChange(msg.sender, epochId, -int256(amountRealEstateToken));
+        _recordBalanceChange(msg.sender, epochId, - int256(amountRealEstateToken));
         paymentDeposited -= amountPayment;
         emit Withdraw(msg.sender, amountPayment, amountRealEstateToken, address(i_realEstateToken));
     }
 
+    /**
+     * @notice how much can claim Appraiser by current epoch
+     */
     function canClaimAppraiser(address appraiser) public view returns (uint256 rewards) {
         rewards = 0;
-        (uint256 epoch, ) = getEpoch();
+        (uint256 epoch,) = getEpoch();
         for (uint256 i = 0; i < epoch; i++) {
             uint256 epochRewards = APPRAISER_REWARD_SHARE * plan.rentAmount / 100;
             rewards += epochRewards * i_realEstateToken.getRewardShare(appraiser, tokenId, i) / 1e18;
@@ -260,8 +346,11 @@ contract Pool is Roles, ReentrancyGuard {
         rewards -= s_claimed[appraiser];
     }
 
+    /**
+     * @notice how much can claim Depositor by current epoch
+     */
     function canClaimDepositor(address depositor) public view returns (uint256) {
-        (uint256 currentEpoch, ) = getEpoch();
+        (uint256 currentEpoch,) = getEpoch();
         uint256 totalClaimable = 0;
         uint256 totalSupply = i_realEstateToken.totalSupply(tokenId);
         require(totalSupply > 0, "Zero total supply");
@@ -281,24 +370,30 @@ contract Pool is Roles, ReentrancyGuard {
         return totalClaimable - alreadyClaimed;
     }
 
+    /**
+     * @notice claim rewards as Appraiser
+     */
     function claimAppraiser() public nonReentrant {
         uint256 amount = canClaimAppraiser(msg.sender);
         if (amount > paidRent) {
             revert NoRentToClaim();
         }
-        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        (bool sent,) = payable(msg.sender).call{value: amount}("");
         require(sent, "Claim failed");
         paidRent -= amount;
         s_claimed[msg.sender] += amount;
         emit Claim(msg.sender, amount);
     }
 
+    /**
+     * @notice claim rewards as Depositor
+     */
     function claimDepositor() public nonReentrant {
         uint256 amount = canClaimDepositor(msg.sender);
         if (amount > paidRent) {
             revert NoRentToClaim();
         }
-        (bool sent, ) = payable(msg.sender).call{value: amount}("");
+        (bool sent,) = payable(msg.sender).call{value: amount}("");
         require(sent, "Claim failed");
         paidRent -= amount;
         s_claimedDepositor[msg.sender] += amount;
