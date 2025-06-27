@@ -8,3 +8,4 @@ libs = ["lib"]
 [rpc_endpoints]
 sepolia = "https://sepolia.gateway.tenderly.co"
 local = "http://127.0.0.1:8545"
+fuji = "https://avalanche-fuji.drpc.org"
