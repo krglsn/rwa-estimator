@@ -177,7 +177,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         oraclePrice = s_tokenEpochData[tokenId][epochId].oracle;
     }
 
-    function setPool(uint256 tokenId, address pool) external onlyIssuerOrOwner {
+    function setPool(uint256 tokenId, address pool) public onlyIssuerOrOwner {
         s_pool[tokenId] = pool;
     }
 
@@ -205,8 +205,12 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         if (err.length != 0) {
             revert(string(err));
         }
-
-        (uint256 tokenId, uint256 epochId, uint256 oraclePrice) = abi.decode(response, (uint256, uint256, uint256));
+        (uint256 tokenId, uint256 oraclePrice) = abi.decode(response, (uint256, uint256));
+        if (s_pool[tokenId] == address(0)) {
+            revert PoolNotSet();
+        }
+        Pool pool = Pool(s_pool[tokenId]);
+        (uint256 epochId, ) = pool.getEpoch();
         s_tokenEpochData[tokenId][epochId].oracle = oraclePrice;
     }
 }

@@ -1,11 +1,19 @@
 pragma solidity 0.8.24;
 
-import {Test, console} from "forge-std/Test.sol";
-import {Issuer} from "../src/Issuer.sol";
-import {TokenPriceDetails} from "../src/TokenPriceDetails.sol";
+import {CommonBase} from "../lib/forge-std/src/Base.sol";
+import {StdAssertions} from "../lib/forge-std/src/StdAssertions.sol";
+import {StdChains} from "../lib/forge-std/src/StdChains.sol";
+import {StdCheats, StdCheatsSafe} from "../lib/forge-std/src/StdCheats.sol";
+import {StdUtils} from "../lib/forge-std/src/StdUtils.sol";
+import {Test} from "../lib/forge-std/src/Test.sol";
 import {Pool} from "../src/Pool.sol";
+import {TokenPriceDetails} from "../src/TokenPriceDetails.sol";
+import {MockPool, TokenPriceDetailsTestFacade} from "./TokenPriceDetails.t.sol";
 
 contract TokenPriceDetailsTestFacade is TokenPriceDetails {
+
+    mapping(uint256 => MockPool) private _mockPools;
+
 
     constructor() TokenPriceDetails(0xA9d587a00A31A52Ed70D6026794a8FC5E2F5dCb0) {}
 
@@ -17,10 +25,41 @@ contract TokenPriceDetailsTestFacade is TokenPriceDetails {
         return _getAverageAppraisal(tokenId, epochId);
     }
 
+    function setupMockPool(uint256 tokenId, uint256 epochNumber, uint256 epochEndTime) external {
+        if (address(_mockPools[tokenId]) == address(0)) {
+            _mockPools[tokenId] = new MockPool(epochNumber, epochEndTime);
+        } else {
+            _mockPools[tokenId].setEpochValues(epochNumber, epochEndTime);
+        }
+        setPool(tokenId, address(_mockPools[tokenId]));
+    }
+
+
     function call_fulfillRequest(bytes32 a, bytes memory b, bytes memory c) external {
         fulfillRequest(a, b, c);
     }
+
 }
+
+contract MockPool {
+    uint256 private _epochNumber;
+    uint256 private _epochEndTime;
+
+    constructor(uint256 epochNumber_, uint256 epochEndTime_) {
+        _epochNumber = epochNumber_;
+        _epochEndTime = epochEndTime_;
+    }
+
+    function getEpoch() external view returns (uint256 epochNumber, uint256 epochEndTime) {
+        return (_epochNumber, _epochEndTime);
+    }
+
+    function setEpochValues(uint256 epochNumber_, uint256 epochEndTime_) external {
+        _epochNumber = epochNumber_;
+        _epochEndTime = epochEndTime_;
+    }
+}
+
 
 contract IssuerTest is Test {
     TokenPriceDetailsTestFacade public facade;
@@ -31,6 +70,7 @@ contract IssuerTest is Test {
         facade = new TokenPriceDetailsTestFacade();
         facade.setIssuer(address(this));
         target = makeAddr("test_acc");
+
     }
 
     function test_appraiser() public {
@@ -65,7 +105,7 @@ contract IssuerTest is Test {
     }
 
     function test_notAllowedAppraiser() public {
-        vm.expectRevert( abi.encodeWithSelector(TokenPriceDetails.AppraiserNotAllowed.selector, address(this)));
+        vm.expectRevert(abi.encodeWithSelector(TokenPriceDetails.AppraiserNotAllowed.selector, address(this)));
         facade.call_setAppraiserPrice(0, 0, 1);
     }
 
@@ -115,9 +155,10 @@ contract IssuerTest is Test {
     }
 
     function test_mocked_functions() public {
-        // data for tokenId=1, epochId=2, appraisal = 100
-        bytes memory data = hex"000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000064";
+        facade.setupMockPool(0, 2, block.timestamp + 1 days);
+        // data for tokenId=0, price = 1034
+        bytes memory data = hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040a";
         facade.call_fulfillRequest("", data, "");
-        assertEq(facade.getEpochPrice(1, 2), 100);
+        assertEq(facade.getEpochPrice(0, 2), 1034);
     }
 }
