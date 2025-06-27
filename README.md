@@ -36,11 +36,11 @@ forge test -vvv
 ## Deploy
 
 ### Local forked environment
-1. Prepare chain fork with Anvil:
+1. Run a chain fork with Anvil:
 ```shell
  anvil --block-time 2  --rpc-url https://sepolia.gateway.tenderly.co
 ```
-2. Deploy token and a couple of pools (see the script for more details):
+2. While Anvil is running, deploy token and a couple of pools (see the script for more details):
 ```shell
 forge script script/RealEstate.s.sol:DeployAll --rpc-url local --broadcast 
 ```
@@ -49,3 +49,4 @@ forge script script/RealEstate.s.sol:DeployAll --rpc-url local --broadcast
 cast send --from 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 <your address> --value "6 ether" --unlocked;
 
 ```
+4. Now you can call contracts and run Web UI using Anvil rpc endpoints http://localhost:8545 and ws://localhost:8545
