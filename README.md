@@ -1,52 +1,84 @@
 # Decentralized RWA Estimator
 
 ## License
+
 This project is licensed under the [MIT License](LICENSE).
 
 ## Overview
 
 A decentralized protocol for Real World Asset (RWA) valuation using independent appraisers and on-chain aggregation logic.
 
-The set of smart contracts supports multiple valuation epochs, fair reward distribution, and integration with [Chainlink Functions](https://docs.chain.link/chainlink-functions) for oracle pricing.
+The smart contracts support:
+- Multiple valuation epochs
+- Fair reward distribution
+- Integration with [Chainlink Functions](https://docs.chain.link/chainlink-functions) for oracle-based pricing
 
 ## Architecture
-Project is based on ERC1155 token, extended with TokenPriceDetails contract. See `src/RealEstateToken.sol`, `TokenPriceDetails.sol` and `ERC1155Core.sol` contracts.  
 
-Pool contract (`src/Pool.sol`) is associated with certain `TokenId` and manages epoch calclulations for:
-- Deposit and Withdraw Tokenized Asset shares (via Token)
-- Swap logic (Native <-> Token) in accordance with current prices
-- Rent payments and safety margin
-- Rewards distribution to Depositors and Appraisers
+The protocol is built on an ERC-1155 token, extended with pricing and pool logic.
 
-TokenPriceDetails (`src/TokenPriceDetails`) manages price aggregation from:
-- oracle price set by Chainlink Functions
-- averaging prices set by Appraisers per token and epoch
+### Core Contracts
 
-Issuer contract (`Issuer.sol`) is main entry point for deployment and handles initial initalisation of Token and Pool contracts.
+- `RealEstateToken.sol`, `TokenPriceDetails.sol`, `ERC1155Core.sol`  
+  Extend ERC-1155 to support tokenized assets with pricing metadata.
 
-Functions contract contains simple functions to provide oracle pricing via [Chainlink Functions](https://docs.chain.link/chainlink-functions) 
+- `Pool.sol`  
+  Associated with a specific `tokenId`, manages epoch calculations for:
+  - Deposits and withdrawals of tokenized asset shares
+  - Native <-> Token swap logic based on current price
+  - Rent payments and safety margins
+  - Reward distribution to depositors and appraisers
 
-## Build and test
-Make sure you have [Foundry tools](https://getfoundry.sh/) installed.
-Tests cover most of the contracts functionality and could be helpfull in reviewing typical flows and use cases.
-```shell
+- `TokenPriceDetails.sol`  
+  Aggregates price data from:
+  - Oracle (via Chainlink Functions)
+  - Appraisers (average of submitted prices per token and epoch)
+
+- `Issuer.sol`  
+  The main entry point. Deploys and initializes the token and pool contracts.
+
+- `Functions.sol`  
+  Provides a basic Chainlink Functions integration for external price fetches.
+
+## Build and Test
+
+Make sure you have [Foundry](https://getfoundry.sh/) installed.
+
+Run tests (covering most flows and contract logic):
+
+```bash
 forge test -vvv
 ```
 
 ## Deploy
 
-### Local forked environment
-1. Run a chain fork with Anvil:
-```shell
- anvil --block-time 2  --rpc-url https://sepolia.gateway.tenderly.co
-```
-2. While Anvil is running, deploy token and a couple of pools (see the script for more details):
-```shell
-forge script script/RealEstate.s.sol:DeployAll --rpc-url local --broadcast 
-```
-3. Optional: topup accounts with some funds:
-```shell
-cast send --from 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 <your address> --value "6 ether" --unlocked;
+### Local Fork (Anvil)
 
-```
-4. Now you can call contracts and run Web UI using Anvil rpc endpoints http://localhost:8545 and ws://localhost:8545
+1. Start Anvil with a Sepolia fork:
+
+   ```bash
+   anvil --block-time 2 --rpc-url https://sepolia.gateway.tenderly.co
+   ```
+
+2. In a new terminal, deploy token and pools:
+
+   ```bash
+   forge script script/RealEstate.s.sol:DeployAll --rpc-url local --broadcast
+   ```
+
+3. Optionally, top up local accounts:
+
+   ```bash
+   cast send --from 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 <your-address> --value "6 ether" --unlocked
+   ```
+
+4. Interact with contracts or connect the Web UI using:
+
+   ```
+   RPC: http://localhost:8545  
+   WebSocket: ws://localhost:8545
+   ```
+
+## Contributions
+
+Contributions, issues, and suggestions are welcome!
