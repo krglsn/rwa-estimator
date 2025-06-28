@@ -13,6 +13,13 @@ The smart contracts support:
 - Fair reward distribution
 - Integration with [Chainlink Functions](https://docs.chain.link/chainlink-functions) for oracle-based RWA pricing
 
+### Integration
+
+- **Chainlink Automation** is used to call `updatePriceDetails()` function of `TokenPriceDetails.sol` contract.
+Here is correpsonding [Chainlink Automation Dashboard](https://automation.chain.link/fuji/15221943673725470984209711744088503315995846813717340010587438390781126415466)
+- **Avalanche Fuji Testnet** is used for all contracts deployment and testing.
+The token contract is deployed at [0xB46e99FcdCD78E8A6cd06E8e0d81Df1a6e577fD0](https://testnet.snowtrace.io/address/0xB46e99FcdCD78E8A6cd06E8e0d81Df1a6e577fD0)
+
 ## Architecture
 
 The protocol is built on an ERC-1155 token, extended with pricing and pool logic.
