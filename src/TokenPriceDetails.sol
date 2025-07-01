@@ -24,6 +24,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     error OnlyAutomationForwarderOrOwnerCanCall();
     error PastAppraisalForbidden();
     error AppraiserAlreadyRegistered();
+    error NoAssetOwner(address sender, address pool);
 
     // Seconds in the end of epoch to forbid appraisals
     uint256 public constant APPRAISAL_LOCK_TIME = 30;
@@ -33,6 +34,9 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
 
     // Average appraisal weigth in resulting price
     uint256 public constant APPRAISAL_WEIGHT = 30;
+
+    // Owners for tokenId assets
+    mapping(uint256 tokenId => address) private _assetOwners;
 
     // Chainlink functions forwarder
     address internal s_automationForwarderAddress;
@@ -264,5 +268,22 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         Pool pool = Pool(s_pool[tokenId]);
         (uint256 epochId,) = pool.getEpoch();
         s_tokenEpochData[tokenId][epochId].oracle = oraclePrice;
+    }
+
+    /**
+     * @notice Set assetOwner for specific tokenId
+     */
+    function setAssetOwner(uint256 tokenId, address admin) public {
+        if (msg.sender != s_issuer && msg.sender != s_pool[tokenId]) {
+            revert NoAssetOwner(msg.sender, s_pool[tokenId]);
+        }
+        _assetOwners[tokenId] = admin;
+    }
+
+    /**
+     * @notice Check if specified address is asset owner
+     */
+    function isAssetOwner(uint256 tokenId, address admin) public view returns (bool) {
+        return _assetOwners[tokenId] == admin;
     }
 }

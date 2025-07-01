@@ -50,6 +50,7 @@ contract Issuer is OwnerIsCreator {
         i_pool = Pool(pool_);
         i_pool.assign(s_currentId, rentAmount_, epochDuration_, programEnd_);
         i_realEstateToken.setPool(s_currentId, address(i_pool));
+        i_realEstateToken.setAssetOwner(s_currentId, msg.sender);
         s_currentId++;
         return s_currentId - 1;
     }

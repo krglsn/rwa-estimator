@@ -24,11 +24,15 @@ contract Pool is Roles, ReentrancyGuard {
     error BalanceDepositMismatch();
     error NoEpochPrice(uint256);
     error NoEnoughBalance();
+    error NotAssetOwner();
+    error LowLiquidationPayment();
+    error CannotLiquidate();
 
     event RentPayment(uint256);
     event Claim(address indexed user, uint256 amount);
     event Deposit(address indexed user, uint256 deposited, uint256 received, address token);
     event Withdraw(address indexed user, uint256 withdrawn, uint256 sent, address token);
+    event Liquidation(address indexed oldOwner, address indexed newOwner);
 
     mapping(address appraiser => uint256) private s_claimed;
     mapping(address depositor => uint256) private s_claimedDepositor;
@@ -61,6 +65,13 @@ contract Pool is Roles, ReentrancyGuard {
         }
         if (block.timestamp >= plan.programEnd) {
             revert ProgramFinished();
+        }
+        _;
+    }
+
+    modifier onlyAssetOwner() {
+        if (!i_realEstateToken.isAssetOwner(tokenId, msg.sender)) {
+            revert NotAssetOwner();
         }
         _;
     }
@@ -178,7 +189,23 @@ contract Pool is Roles, ReentrancyGuard {
      * @dev Basically it should involve more roles and simply transfer ownership
      * @dev when rent and safety debts are paid.
      */
-    function liquidate() public {}
+    function liquidate() public payable nonReentrant planAssigned {
+        if (!canLiquidate()) {
+            revert CannotLiquidate();
+        }
+        uint256 paymentRent = rentDue();
+        uint256 paymentSafety = safetyAmountDue();
+        uint256 paymentRequired = paymentRent + paymentSafety;
+        if (msg.value < paymentRequired) {
+            revert LowLiquidationPayment();
+        }
+        paidRent += paymentRent;
+        emit RentPayment(paymentRent);
+        paymentDeposited += paymentSafety;
+        emit Deposit(msg.sender, paymentSafety, 0, address(i_realEstateToken));
+        i_realEstateToken.setAssetOwner(tokenId, msg.sender);
+        emit Liquidation(i_realEstateToken.owner(), msg.sender);
+    }
 
     /**
      * @notice get parameters of plan associated with this pool.
@@ -282,7 +309,7 @@ contract Pool is Roles, ReentrancyGuard {
      * @notice withdraw native token from pool by owner, with respect to safetyDeposit.
      * @dev TODO: emergence withdraw should be implemented separately.
      */
-    function withdrawOwner(uint256 amountPayment) public nonReentrant onlyIssuerOrOwner planAssigned {
+    function withdrawOwner(uint256 amountPayment) public nonReentrant onlyAssetOwner planAssigned {
         if (amountPayment > availableWithdraw()) {
             revert NoFundsToWithdraw();
         }
@@ -295,7 +322,7 @@ contract Pool is Roles, ReentrancyGuard {
     /**
      * @notice deposit (repay) native token by owner.
      */
-    function depositOwner(uint256 amount) public payable nonReentrant {
+    function depositOwner(uint256 amount) public payable nonReentrant onlyAssetOwner {
         if (msg.value != amount) {
             revert MsgValueMismatch();
         }

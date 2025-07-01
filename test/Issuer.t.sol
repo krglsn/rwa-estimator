@@ -75,4 +75,64 @@ contract IssuerTest is Test {
         vm.expectRevert(TokenPriceDetails.AppraisalAlreadySet.selector);
         token.setAppraiserPrice(tokenId, 0, 2);
     }
+
+    function test_liquidation() public {
+        address oldOwner = address(this);
+        uint256 tokenId = issuer.issue("another_test", address(pool), 300, 50, 1 days, 1907577068);
+        vm.warp(block.timestamp + 8 hours);
+        assertEq(pool.rentDue(), 50);
+        assertFalse(pool.canLiquidate());
+        vm.warp(block.timestamp + 1 days);
+        assertEq(pool.rentDue(), 100);
+        assertTrue(pool.canLiquidate());
+        pool.payRent{value: 49}(49);
+        assertTrue(pool.canLiquidate());
+        uint256 rent = pool.rentDue();
+        uint256 safety = pool.safetyAmountDue();
+        address liquidator = makeAddr("liqui");
+        vm.deal(liquidator, 10e18);
+        vm.prank(liquidator);
+        vm.expectEmit();
+        emit Pool.Liquidation(oldOwner, liquidator);
+        pool.liquidate{value: rent + safety}();
+        assertTrue(token.isAssetOwner(tokenId, liquidator));
+    }
+
+    function test_liquidation_lowpayment() public {
+        issuer.issue("another_test", address(pool), 300, 50, 1 days, 1907577068);
+        vm.warp(block.timestamp + 8 hours);
+        assertEq(pool.rentDue(), 50);
+        assertFalse(pool.canLiquidate());
+        vm.warp(block.timestamp + 1 days);
+        assertEq(pool.rentDue(), 100);
+        assertTrue(pool.canLiquidate());
+        pool.payRent{value: 49}(49);
+        assertTrue(pool.canLiquidate());
+        uint256 rent = pool.rentDue();
+        uint256 safety = pool.safetyAmountDue();
+        address liquidator = makeAddr("liqui");
+        vm.deal(liquidator, 10e18);
+        vm.prank(liquidator);
+        vm.expectRevert(Pool.LowLiquidationPayment.selector);
+        pool.liquidate{value: rent + safety - 1}();
+    }
+
+    function test_noliquidation() public {
+        issuer.issue("another_test", address(pool), 300, 50, 1 days, 1907577068);
+        vm.warp(block.timestamp + 8 hours);
+        assertEq(pool.rentDue(), 50);
+        assertFalse(pool.canLiquidate());
+        vm.warp(block.timestamp + 1 days);
+        assertEq(pool.rentDue(), 100);
+        assertTrue(pool.canLiquidate());
+        pool.payRent{value: 100}(100);
+        assertFalse(pool.canLiquidate());
+        uint256 rent = pool.rentDue();
+        uint256 safety = pool.safetyAmountDue();
+        address liquidator = makeAddr("liqui");
+        vm.deal(liquidator, 10e18);
+        vm.prank(liquidator);
+        vm.expectRevert(Pool.CannotLiquidate.selector);
+        pool.liquidate{value: rent + safety}();
+    }
 }
