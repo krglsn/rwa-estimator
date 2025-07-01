@@ -11,6 +11,9 @@ import {Roles} from "./Roles.sol";
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract ERC1155Core is ERC1155Supply, Roles {
+
+    error AlreadyMinted();
+
     // Optional mapping for token URIs
     mapping(uint256 tokenId => string) private _tokenURIs;
 
@@ -29,6 +32,9 @@ contract ERC1155Core is ERC1155Supply, Roles {
         public
         onlyIssuerOrItself
     {
+        if (totalSupply(_id) > 0) {
+            revert AlreadyMinted();
+        }
         _mint(_to, _id, _amount, _data);
         _tokenURIs[_id] = _tokenUri;
     }
