@@ -31,10 +31,12 @@ contract IssuerTest is Test {
         uint256 balance = token.balanceOf(address(pool), 0);
         assertEq(balance, 100);
         assertFalse(token.exists(1));
-        uint256 id = issuer.issue("test2.url", address(pool), 200, 1, 3600, 1907577068);
+        Pool pool2 = new Pool(address(token));
+        pool2.setIssuer(address(issuer));
+        uint256 id = issuer.issue("test2.url", address(pool2), 200, 1, 3600, 1907577068);
         assertEq(id, 1);
         assertTrue(token.exists(1));
-        balance = token.balanceOf(address(pool), 1);
+        balance = token.balanceOf(address(pool2), 1);
         assertEq(balance, 200);
         assertEq(200, token.totalSupply(1));
     }

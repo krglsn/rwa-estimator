@@ -14,6 +14,7 @@ contract Pool is Roles, ReentrancyGuard {
     error TokenIdNotFound();
     error InvalidProgramEnd();
     error PlanNotAssigned(); // 0xc4b1faa8
+    error PlanAlreadyAssigned();
     error ProgramFinished();
     error NoFundsToWithdraw(); // 0x67e3990d
     error NoSafetyBalance(uint256);
@@ -82,6 +83,9 @@ contract Pool is Roles, ReentrancyGuard {
         nonReentrant
         onlyIssuerOrItself
     {
+        if (plan.epochDuration != 0) {
+            revert PlanAlreadyAssigned();
+        }
         if (!i_realEstateToken.exists(tokenId_)) {
             revert TokenIdNotFound();
         }

@@ -25,6 +25,13 @@ contract PoolTest is Test {
         pool.getPrice();
     }
 
+    function test_double_plan() public {
+        uint256 end = block.timestamp + 100 days;
+        pool.assign(1, 10, 3600, end);
+        vm.expectRevert(Pool.PlanAlreadyAssigned.selector);
+        pool.assign(1, 20, 7300, end);
+    }
+
     function test_assign() public {
         uint256 start = block.timestamp;
         uint256 end = start + 1 days;
