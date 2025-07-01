@@ -11,7 +11,6 @@ import {Roles} from "./Roles.sol";
  * DO NOT USE THIS CODE IN PRODUCTION.
  */
 contract ERC1155Core is ERC1155Supply, Roles {
-
     error AlreadyMinted();
 
     // Optional mapping for token URIs
