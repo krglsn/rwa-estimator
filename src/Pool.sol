@@ -152,8 +152,8 @@ contract Pool is Roles, ReentrancyGuard {
     /**
      * @notice Get amount to keep safety margin in current epoch, depends on current pricing.
      */
-    function safetyAmountDue() public view planActive returns (uint256 remainingAmount) {
-        if (safetyAmount() > paymentDeposited) {
+    function safetyAmountDue() public view returns (uint256 remainingAmount) {
+        if ((safetyAmount() > paymentDeposited) && (block.timestamp < plan.programEnd)) {
             return safetyAmount() - paymentDeposited;
         }
         return 0;
@@ -342,6 +342,7 @@ contract Pool is Roles, ReentrancyGuard {
     /**
      * @notice Burn tokens on contract, only possible after program end.
      * @dev If depositors hold part of tokens then some ETH amount will remain in contract.
+     * TODO: implement withdraw remaining rent after program closed completely.
      */
     function closeProgram() public nonReentrant onlyAssetOwner {
         if (block.timestamp < plan.programEnd) {

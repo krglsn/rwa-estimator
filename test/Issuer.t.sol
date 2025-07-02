@@ -172,6 +172,11 @@ contract IssuerTest is Test {
         address appraiser1 = makeAddr("appraiser1");
         address appraiser2 = makeAddr("appraiser2");
         address depositor1 = makeAddr("depositor1");
+        address depositor2 = makeAddr("depositor2");
+        address liqui = makeAddr("liquidator");
+        vm.deal(depositor1, 10 ether);
+        vm.deal(depositor2, 10 ether);
+        vm.deal(liqui, 10 ether);
 
         token.registerAppraiser(appraiser1);
         token.registerAppraiser(appraiser2);
@@ -187,11 +192,14 @@ contract IssuerTest is Test {
         uint256 safety = pool.safetyAmountDue();
         pool.payRent{value: rent}(rent);
         pool.paySafety{value: safety}(safety);
-
-        vm.prank(appraiser1);
+        vm.startPrank(appraiser1);
         token.setAppraiserPrice(0, 0, 12e5);
-        vm.prank(appraiser2);
+        token.setAppraiserPrice(0, 1, 12e5);
+        vm.stopPrank();
+        vm.startPrank(appraiser2);
         token.setAppraiserPrice(0, 0, 1e5);
+        token.setAppraiserPrice(0, 1, 1e5);
+        vm.stopPrank();
 
         // EPOCH #1
         vm.warp(block.timestamp + 1 days);
@@ -199,16 +207,98 @@ contract IssuerTest is Test {
         safety = pool.safetyAmountDue();
         pool.payRent{value: rent}(rent);
         pool.paySafety{value: safety}(safety);
-
         vm.startPrank(appraiser1);
-        token.setAppraiserPrice(0, 1, 9e5);
+        token.setAppraiserPrice(0, 2, 9e5);
         uint256 claim1 = pool.canClaimAppraiser(appraiser1);
         vm.stopPrank();
         vm.startPrank(appraiser2);
-        token.setAppraiserPrice(0, 1, 1e5);
+        token.setAppraiserPrice(0, 2, 1e5);
         uint256 claim2 = pool.canClaimAppraiser(appraiser2);
-        assertGt(claim1, claim2);
+        assertGt(claim1, claim2); // a1 set value closer to weighted price, than a2
         pool.claimAppraiser();
         assertEq(pool.canClaimAppraiser(appraiser2), 0);
+        vm.stopPrank();
+        vm.startPrank(depositor1);
+        uint256 price1 = pool.getPrice();
+        pool.deposit{value: 100 * price1}(100 * price1);
+        assertEq(token.balanceOf(depositor1, 0), 100);
+        assertEq(token.balanceOf(address(pool), 0), 900);
+        vm.stopPrank();
+        rent = pool.rentDue();
+        safety = pool.safetyAmountDue();
+        pool.payRent{value: rent}(rent);
+        pool.paySafety{value: safety}(safety);
+
+        // EPOCH #2
+        vm.warp(block.timestamp + 1 days);
+        assertFalse(pool.canLiquidate());
+        uint256 price2 = pool.getPrice();
+        assertGt(price2, price1);
+        assertEq(pool.safetyAmountDue(), 0); // have depositor's deposit that covers safety
+        vm.startPrank(appraiser1);
+        token.setAppraiserPrice(0, 3, 9e5);
+        token.setAppraiserPrice(0, 4, 9e5);
+        pool.claimAppraiser();
+        vm.stopPrank();
+        vm.startPrank(appraiser2);
+        token.setAppraiserPrice(0, 3, 1e5);
+        token.setAppraiserPrice(0, 4, 1e5);
+        pool.claimAppraiser();
+        assertEq(pool.canClaimAppraiser(appraiser1), 0);
+        assertEq(pool.canClaimAppraiser(appraiser2), 0);
+        vm.stopPrank();
+        vm.startPrank(depositor1);
+        token.setApprovalForAll(address(pool), true);
+        vm.expectRevert(Pool.NoFundsToWithdraw.selector);
+        pool.withdraw(99); // cannot withdraw so much because need increased safety
+        pool.withdraw(95);
+        vm.stopPrank();
+        assertEq(token.balanceOf(depositor1, 0), 5);
+        assertEq(token.balanceOf(address(pool), 0), 995);
+        vm.startPrank(depositor2);
+        uint256 balanceBefore = depositor2.balance;
+        uint256 amountD2 = 500 * price2;
+        pool.deposit{value: amountD2}(amountD2);
+        uint256 balanceAfter = depositor2.balance;
+        vm.stopPrank();
+
+        // EPOCH #4
+        vm.warp(block.timestamp + 2 days);
+        uint256 price3 = pool.getPrice();
+        assertLt(price3, price2);
+        vm.startPrank(depositor2);
+        token.setApprovalForAll(address(pool), true);
+        pool.withdraw(500);
+        assertEq(token.balanceOf(depositor2, 0), 0);
+        assertEq(depositor2.balance, 10 ether - (500 * (price2 - price3))); // loss on price diff between epoch 2 and 4
+        pool.claimDepositor();
+        assertGt(depositor2.balance, 10 ether - (500 * (price2 - price3)));
+        vm.stopPrank();
+        assertTrue(pool.canLiquidate());
+        uint256 liqAmount = pool.rentDue() + pool.safetyAmountDue();
+        vm.startPrank(liqui);
+        pool.liquidate{value: liqAmount}();
+        uint256 withdrawable1 = pool.availableWithdraw();
+        pool.withdrawOwner(withdrawable1 - 10);
+        vm.stopPrank();
+        assertFalse(pool.canLiquidate());
+
+        // EPOCH #5 END OF PROGRAM
+        vm.warp(block.timestamp + 1 days);
+        assertEq(pool.availableWithdraw(), 10);
+        vm.startPrank(liqui);
+        vm.expectRevert(Pool.ProgramFinished.selector);
+        pool.withdrawOwner(1);
+        assertEq(pool.safetyAmountDue(), 0);
+        vm.stopPrank();
+        vm.expectRevert(Pool.NotAssetOwner.selector);
+        pool.closeProgram();
+        vm.startPrank(liqui);
+        vm.expectRevert(Pool.RentUnpaid.selector);
+        pool.closeProgram();
+        pool.payRent{value: pool.rentDue()}(pool.rentDue());
+        pool.closeProgram();
+        assertEq(token.balanceOf(address(pool), 0), 0);
+        vm.stopPrank();
     }
 }
