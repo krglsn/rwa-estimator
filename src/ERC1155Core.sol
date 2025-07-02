@@ -39,19 +39,6 @@ contract ERC1155Core is ERC1155Supply, Roles {
     }
 
     /**
-     * @notice Burn tokens
-     * @param account Address of the token holder
-     * @param id ERC1155 Token identifier
-     * @param amount Amount of Token[id] to burn
-     */
-    function burn(address account, uint256 id, uint256 amount) public onlyIssuerOrItself {
-        if (account != _msgSender() && !isApprovedForAll(account, _msgSender())) {
-            revert ERC1155MissingApprovalForAll(_msgSender(), account);
-        }
-        _burn(account, id, amount);
-    }
-
-    /**
      * @notice Get URI assigned to token.
      * @param tokenId ERC1155 Token identifier
      * @return URI string for the token

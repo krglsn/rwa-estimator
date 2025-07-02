@@ -16,6 +16,7 @@ contract Pool is Roles, ReentrancyGuard {
     error PlanNotAssigned(); // 0xc4b1faa8
     error PlanAlreadyAssigned();
     error ProgramFinished();
+    error ProgramNotFinished();
     error NoFundsToWithdraw(); // 0x67e3990d
     error NoSafetyBalance(uint256);
     error TooShortEpoch();
@@ -27,6 +28,7 @@ contract Pool is Roles, ReentrancyGuard {
     error NotAssetOwner();
     error LowLiquidationPayment();
     error CannotLiquidate();
+    error RentUnpaid();
 
     event RentPayment(uint256);
     event Claim(address indexed user, uint256 amount);
@@ -59,12 +61,19 @@ contract Pool is Roles, ReentrancyGuard {
 
     RealEstateToken internal immutable i_realEstateToken;
 
-    modifier planAssigned() {
+    modifier planActive() {
         if (plan.epochDuration == 0) {
             revert PlanNotAssigned();
         }
         if (block.timestamp >= plan.programEnd) {
             revert ProgramFinished();
+        }
+        _;
+    }
+
+    modifier planAssigned() {
+        if (plan.epochDuration == 0) {
+            revert PlanNotAssigned();
         }
         _;
     }
@@ -143,7 +152,7 @@ contract Pool is Roles, ReentrancyGuard {
     /**
      * @notice Get amount to keep safety margin in current epoch, depends on current pricing.
      */
-    function safetyAmountDue() public view planAssigned returns (uint256 remainingAmount) {
+    function safetyAmountDue() public view planActive returns (uint256 remainingAmount) {
         if (safetyAmount() > paymentDeposited) {
             return safetyAmount() - paymentDeposited;
         }
@@ -166,7 +175,7 @@ contract Pool is Roles, ReentrancyGuard {
      * @notice pay deposit to increase safety margin
      * @param amount could be any but see also SafetyAmountDue
      */
-    function paySafety(uint256 amount) public payable nonReentrant planAssigned {
+    function paySafety(uint256 amount) public payable nonReentrant planActive {
         if (msg.value != amount) {
             revert MsgValueMismatch();
         }
@@ -309,7 +318,7 @@ contract Pool is Roles, ReentrancyGuard {
      * @notice withdraw native token from pool by owner, with respect to safetyDeposit.
      * @dev TODO: emergence withdraw should be implemented separately.
      */
-    function withdrawOwner(uint256 amountPayment) public nonReentrant onlyAssetOwner planAssigned {
+    function withdrawOwner(uint256 amountPayment) public nonReentrant onlyAssetOwner planActive {
         if (amountPayment > availableWithdraw()) {
             revert NoFundsToWithdraw();
         }
@@ -328,6 +337,21 @@ contract Pool is Roles, ReentrancyGuard {
         }
         paymentDeposited += amount;
         emit Deposit(msg.sender, amount, 0, address(i_realEstateToken));
+    }
+
+    /**
+     * @notice Burn tokens on contract, only possible after program end.
+     * @dev If depositors hold part of tokens then some ETH amount will remain in contract.
+     */
+    function closeProgram() public nonReentrant onlyAssetOwner {
+        if (block.timestamp < plan.programEnd) {
+            revert ProgramNotFinished();
+        }
+        if (rentDue() > 0) {
+            revert RentUnpaid();
+        }
+        uint256 poolBalance = i_realEstateToken.balanceOf(address(this), tokenId);
+        i_realEstateToken.burn(address(this), tokenId, poolBalance);
     }
 
     /**

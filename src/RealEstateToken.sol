@@ -19,4 +19,20 @@ contract RealEstateToken is ERC1155Core, TokenPriceDetails {
         ERC1155Core(uri_)
         TokenPriceDetails(functionsRouterAddress)
     {}
+
+    /**
+     * @notice Burn tokens
+     * @param account Address of the token holder
+     * @param id ERC1155 Token identifier
+     * @param amount Amount of Token[id] to burn
+     */
+    function burn(address account, uint256 id, uint256 amount) public {
+        if (msg.sender != s_issuer && msg.sender != s_pool[id]) {
+            revert NotAssetOwner(msg.sender, s_pool[id]);
+        }
+        if (account != _msgSender() && !isApprovedForAll(account, _msgSender())) {
+            revert ERC1155MissingApprovalForAll(_msgSender(), account);
+        }
+        _burn(account, id, amount);
+    }
 }

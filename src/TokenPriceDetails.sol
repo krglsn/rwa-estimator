@@ -24,7 +24,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
     error OnlyAutomationForwarderOrOwnerCanCall();
     error PastAppraisalForbidden();
     error AppraiserAlreadyRegistered();
-    error NoAssetOwner(address sender, address pool);
+    error NotAssetOwner(address sender, address pool);
 
     // Seconds in the end of epoch to forbid appraisals
     uint256 public constant APPRAISAL_LOCK_TIME = 30;
@@ -46,7 +46,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
         uint80 count;
     }
 
-    mapping(uint256 => address) private s_pool;
+    mapping(uint256 => address) internal s_pool;
     mapping(address => bool) private s_isAppraiser;
     address[] public s_appraisers;
     mapping(uint256 tokenId => mapping(uint256 epochId => EpochPrice)) internal s_tokenEpochData;
@@ -275,7 +275,7 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
      */
     function setAssetOwner(uint256 tokenId, address admin) public {
         if (msg.sender != s_issuer && msg.sender != s_pool[tokenId]) {
-            revert NoAssetOwner(msg.sender, s_pool[tokenId]);
+            revert NotAssetOwner(msg.sender, s_pool[tokenId]);
         }
         _assetOwners[tokenId] = admin;
     }

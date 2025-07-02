@@ -135,4 +135,34 @@ contract IssuerTest is Test {
         vm.expectRevert(Pool.CannotLiquidate.selector);
         pool.liquidate{value: rent + safety}();
     }
+
+    function test_program_close() public {
+        issuer.issue("close_test", address(pool), 300, 50, 1 days, block.timestamp + 10 days);
+        vm.warp(block.timestamp + 10 days);
+        uint256 amount = pool.rentDue();
+        pool.payRent{value: amount}(amount);
+        assertEq(token.balanceOf(address(pool), 0), 300);
+        pool.closeProgram();
+        assertEq(token.balanceOf(address(pool), 0), 0);
+    }
+
+    function test_program_cannot_close_early() public {
+        issuer.issue("close_test", address(pool), 300, 50, 1 days, block.timestamp + 10 days);
+        vm.warp(block.timestamp + 9 days);
+        uint256 amount = pool.rentDue();
+        pool.payRent{value: amount}(amount);
+        assertEq(token.balanceOf(address(pool), 0), 300);
+        vm.expectRevert(Pool.ProgramNotFinished.selector);
+        pool.closeProgram();
+    }
+
+    function test_program_cannot_close_unpaid() public {
+        issuer.issue("close_test", address(pool), 300, 50, 1 days, block.timestamp + 10 days);
+        vm.warp(block.timestamp + 11 days);
+        uint256 amount = pool.rentDue() - 1;
+        pool.payRent{value: amount}(amount);
+        assertEq(token.balanceOf(address(pool), 0), 300);
+        vm.expectRevert(Pool.RentUnpaid.selector);
+        pool.closeProgram();
+    }
 }
