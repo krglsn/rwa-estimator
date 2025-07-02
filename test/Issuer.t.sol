@@ -167,7 +167,6 @@ contract IssuerTest is Test {
     }
 
     function test_program_e2e() public {
-
         // SETUP
         issuer.issue("e2e-test", address(pool), 1000, 1e6, 1 days, block.timestamp + 5 days);
         address appraiser1 = makeAddr("appraiser1");
@@ -183,8 +182,7 @@ contract IssuerTest is Test {
         token.setOraclePrice(0, 3, 11e5);
         token.setOraclePrice(0, 4, 1e6);
 
-
-       // EPOCH #0
+        // EPOCH #0
         uint256 rent = pool.rentDue();
         uint256 safety = pool.safetyAmountDue();
         pool.payRent{value: rent}(rent);
@@ -195,7 +193,7 @@ contract IssuerTest is Test {
         vm.prank(appraiser2);
         token.setAppraiserPrice(0, 0, 1e5);
 
-       // EPOCH #1
+        // EPOCH #1
         vm.warp(block.timestamp + 1 days);
         rent = pool.rentDue();
         safety = pool.safetyAmountDue();
@@ -212,6 +210,5 @@ contract IssuerTest is Test {
         assertGt(claim1, claim2);
         pool.claimAppraiser();
         assertEq(pool.canClaimAppraiser(appraiser2), 0);
-
     }
 }
