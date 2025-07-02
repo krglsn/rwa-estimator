@@ -143,9 +143,9 @@ contract IssuerTest is Test {
         facade.call_setAppraiserPrice(0, 0, 5000);
         assertEq(facade.getAppraisalCount(0, 0), 3);
         assertEq(facade.getEpochPrice(0, 0), 2800);
-        assertEq(facade.getRewardShare(a1, 0, 0), 315789473684210526);
-        assertEq(facade.getRewardShare(a2, 0, 0), 298245614035087719);
-        assertEq(facade.getRewardShare(a3, 0, 0), 385964912280701754);
+        assertEq(facade.getRewardShare(a1, 0, 0), 347583643122676579);
+        assertEq(facade.getRewardShare(a2, 0, 0), 368029739776951672);
+        assertEq(facade.getRewardShare(a3, 0, 0), 284386617100371747);
     }
 
     function test_mocked_functions() public {

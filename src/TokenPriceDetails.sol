@@ -168,7 +168,10 @@ contract TokenPriceDetails is Roles, FunctionsClient, FunctionsSource {
             uint256 appraisal = s_appraisals[a][tokenId][epochId];
             if (appraisal > 0) {
                 uint256 diff = appraisal > refPrice ? (appraisal - refPrice) : (refPrice - appraisal);
-                uint256 weight = diff * 1e18 / refPrice;
+                if (diff == 0) {
+                    diff = 1;
+                }
+                uint256 weight = refPrice * 1e18 / diff;
                 totalWeight += weight;
                 if (a == appraiser) {
                     aWeight += weight;

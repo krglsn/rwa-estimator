@@ -219,22 +219,22 @@ contract PoolTest is Test {
             vm.prank(a2);
             token.setAppraiserPrice(tokenId, i, 10000);
             assertEq(token.getEpochPrice(tokenId, i), 7625);
-            assertEq(token.getRewardShare(a1, tokenId, i), 634615384615384615);
-            assertEq(token.getRewardShare(a2, tokenId, i), 365384615384615384);
+            assertEq(token.getRewardShare(a2, tokenId, i), 634615384615384615);
+            assertEq(token.getRewardShare(a1, tokenId, i), 365384615384615384);
         }
         vm.warp(block.timestamp + 5 days);
-        assertEq(pool.canClaimAppraiser(a1), 79325);
-        assertEq(pool.canClaimAppraiser(a2), 45670);
+        assertEq(pool.canClaimAppraiser(a2), 79325);
+        assertEq(pool.canClaimAppraiser(a1), 45670);
         vm.prank(dep);
         vm.deal(dep, 1 ether);
         pool.payRent{value: 250000}(250000);
-        uint256 balanceBefore = a1.balance;
-        vm.prank(a1);
+        uint256 balanceBefore = a2.balance;
+        vm.prank(a2);
         vm.expectEmit();
-        emit Pool.Claim(a1, 79325);
+        emit Pool.Claim(a2, 79325);
         pool.claimAppraiser();
-        assertEq(pool.canClaimAppraiser(a1), 0);
-        uint256 balanceAfter = a1.balance;
+        assertEq(pool.canClaimAppraiser(a2), 0);
+        uint256 balanceAfter = a2.balance;
         assertGt(balanceAfter, balanceBefore);
         assertEq(balanceAfter - balanceBefore, 79325);
     }

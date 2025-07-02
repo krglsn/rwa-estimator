@@ -165,4 +165,53 @@ contract IssuerTest is Test {
         vm.expectRevert(Pool.RentUnpaid.selector);
         pool.closeProgram();
     }
+
+    function test_program_e2e() public {
+
+        // SETUP
+        issuer.issue("e2e-test", address(pool), 1000, 1e6, 1 days, block.timestamp + 5 days);
+        address appraiser1 = makeAddr("appraiser1");
+        address appraiser2 = makeAddr("appraiser2");
+        address depositor1 = makeAddr("depositor1");
+
+        token.registerAppraiser(appraiser1);
+        token.registerAppraiser(appraiser2);
+
+        token.setOraclePrice(0, 0, 1e6);
+        token.setOraclePrice(0, 1, 11e5);
+        token.setOraclePrice(0, 2, 12e5);
+        token.setOraclePrice(0, 3, 11e5);
+        token.setOraclePrice(0, 4, 1e6);
+
+
+       // EPOCH #0
+        uint256 rent = pool.rentDue();
+        uint256 safety = pool.safetyAmountDue();
+        pool.payRent{value: rent}(rent);
+        pool.paySafety{value: safety}(safety);
+
+        vm.prank(appraiser1);
+        token.setAppraiserPrice(0, 0, 12e5);
+        vm.prank(appraiser2);
+        token.setAppraiserPrice(0, 0, 1e5);
+
+       // EPOCH #1
+        vm.warp(block.timestamp + 1 days);
+        rent = pool.rentDue();
+        safety = pool.safetyAmountDue();
+        pool.payRent{value: rent}(rent);
+        pool.paySafety{value: safety}(safety);
+
+        vm.startPrank(appraiser1);
+        token.setAppraiserPrice(0, 1, 9e5);
+        uint256 claim1 = pool.canClaimAppraiser(appraiser1);
+        vm.stopPrank();
+        vm.startPrank(appraiser2);
+        token.setAppraiserPrice(0, 1, 1e5);
+        uint256 claim2 = pool.canClaimAppraiser(appraiser2);
+        assertGt(claim1, claim2);
+        pool.claimAppraiser();
+        assertEq(pool.canClaimAppraiser(appraiser2), 0);
+
+    }
 }
